@@ -2,6 +2,10 @@
 # coding: utf-8
 
 # # CS60 Database Schema Construction
+
+# In[1]:
+
+
 import pandas as pd
 import numpy as np
 import sqlalchemy as db
@@ -9,23 +13,51 @@ from pandas.io import sql
 from text_unidecode import unidecode
 import bcrypt
 
-## Read in Data
-players = pd.read_csv("./players_20.csv", usecols=['short_name', 'long_name', 'age', 'height_cm', 
 
-# ### Manipulate Data to reflect our schema
+# ## Read in Data
+
+# In[2]:
+
+
+players = pd.read_csv("./players_20.csv", usecols=['short_name', 'long_name', 'age', 'height_cm', 
+                                                   'weight_kg', 'club', 'player_positions', 'overall'])
+
+
+# In[3]:
+
+
+players.head()
+
+
+# ## Manipulate Data to reflect our schema
+
 # #### Add Data Categories to Players to match our Schema and Select only players from La Liga Series A
+
+# In[4]:
+
 
 players['first_name'] = players['long_name'].str.split().str[0]
 players['last_name'] = players['long_name'].str.split().str[1:]
 players['last_name'] = players['last_name'].apply(" ".join)
 
+
+# In[5]:
+
+
 # Decode any strange characters:
 players['first_name'] = players['first_name'].apply(unidecode)
 players['last_name'] = players['last_name'].apply(unidecode)
 
+
+# In[6]:
+
+
 # Generate Player salaries by using overall player score from FIFA:
 players['overall'] /= 10 # divide by 10 and consider player ranking a log scale to generate salaries
 players['salary'] = (2.9**players['overall'] * 500).astype(int)
+
+
+# In[7]:
 
 
 # Select only players in the La Liga Clubs selected for our database
@@ -36,7 +68,13 @@ db_clubs = ['FC Barcelona', 'Atlético Madrid', 'Real Betis',
             'CA Osasuna', 'Levante UD', 'Deportivo Alavés',
             'Real Valladolid CF', 'SD Eibar', 'RC Celta', 
             'RCD Mallorca', 'CD Leganés', 'RCD Espanyol']
+
 players = players[players['club'].isin(db_clubs)]
+print("Clubs remaining:", players['club'].nunique())
+
+
+# In[8]:
+
 
 # Create AUTO_INCREMENT id:
 players.reset_index(inplace=True, drop=True)
@@ -45,9 +83,16 @@ players.reset_index(level=0, inplace=True)
 
 # #### Generate Club Table, and dictionary to map Club Names to IDs within the players table
 
+# In[9]:
+
+
 # Convert Club Names into ClubIDs
 club_dict = {k: v for v, k in enumerate(db_clubs)} # converts club name to clubID
 players['club'] = players['club'].apply(lambda club: club_dict[club]) # convert within dataframe
+
+
+# In[10]:
+
 
 # create a club dataframe to go along with the players dataframe:
 clubs = pd.DataFrame(db_clubs, columns=['ClubName'])
@@ -55,9 +100,21 @@ clubs.reset_index(level=0, inplace=True)
 clubs['LeagueID'] = 0
 clubs = clubs.rename(columns={"index": "ClubID"})
 
+clubs.head()
+
+
+# In[11]:
+
+
+# create managers dataframe to 
+
 
 # #### Generate position dataframe & position to ID dict
 
+# In[12]:
+
+
+# Generate position dataframe & id dictionary
 def unique(list1): 
     x = np.array(list1) 
     return np.unique(x) 
@@ -70,9 +127,13 @@ pos_dict = {k: v for v, k in enumerate(pos_list)} # converts club name to clubID
 positions = pd.DataFrame(pos_list, columns=['PositionName'])
 positions.reset_index(level=0, inplace=True)
 positions = positions.rename(columns={"index": "PositionID"})
+positions.head()
 
 
 # #### Break PlayerPositions column into dataframe PlayerPositions (Normalize the DB)
+
+# In[13]:
+
 
 # Extract Data
 player_positions_list = [] # list of dictionaries representing each player position relationship
@@ -91,18 +152,34 @@ player_positions.head()
 
 # #### Players table now complete - remove unnessesary columns to finalize
 
+# In[14]:
+
+
 # Remove unnessesary data
 players = players[['index', 'first_name', 'last_name', 'age', 'club', 'salary']]
 players = players.rename(columns={"index": "PlayerID", "first_name": "FirstName", "last_name": "LastName",
                                   "club": "ClubID","salary": "Salary", "age": "Age"})
+players.head()
+
+
+# In[15]:
+
+
+sum(players[players['ClubID'] == 1]['Salary']) # Get a sense for how high the salary cap should be
 
 
 # #### Create Clubs and Managers DF
 
+# In[16]:
+
+
 # Create Clubs DF
 leagues = pd.DataFrame([{'LeagueID': 0, 'LeagueName': 'La Liga Series A', 
-                         'SalaryCap': 80000000, 'MinPlayersPerTeam': 20}])
+                         'SalaryCap': 800000000, 'MinPlayersPerTeam': 20}])
 leagues.head()
+
+
+# In[17]:
 
 
 # Create Managers DF
@@ -136,24 +213,63 @@ for i in range(len(usernames)):
     
     managers_list.append(manager)
     
+    
 # Create the Manager Table:
 managers = pd.DataFrame(data=managers_list)
 managers.head()
 
+
+# In[18]:
+
+
 # Save Manager Info for Reference:
 managers.to_csv("manager_creds.csv")
-managers = managers.drop("Password", axis=1) # then drop password
+managers = managers.drop("Password", axis=1)
 
 
 # ## Populate the SQL Database
 
-# Create DB Connection
+# In[19]:
+
+
 sunapee = db.create_engine('mysql+mysqldb://TransferMarkt_sp20:V2LK^ep$@sunapee.cs.dartmouth.edu:3306/TransferMarkt_sp20', pool_recycle=3600)
 
+
 # #### Insert Tables:
-leagues.to_sql(con=sunapee, name='leagues', if_exists='append', index=False)
-clubs.to_sql(con=sunapee, name='clubs', if_exists='append', index=False)
-players.to_sql(con=sunapee, name='players', if_exists='append', index=False)
-positions.to_sql(con=sunapee, name='positions', if_exists='append', index=False)
-player_positions.to_sql(con=sunapee, name='playerpositions', if_exists='append', index=False)
-managers.to_sql(con=sunapee, name='managers', if_exists='append', index=False)
+
+# In[20]:
+
+
+leagues.to_sql(con=sunapee, name='Leagues', if_exists='append', index=False)
+
+
+# In[21]:
+
+
+# Insert clubs before players to satisfy FK constraints
+clubs.to_sql(con=sunapee, name='Clubs', if_exists='append', index=False)
+
+
+# In[22]:
+
+
+players.to_sql(con=sunapee, name='Players', if_exists='append', index=False)
+
+
+# In[23]:
+
+
+positions.to_sql(con=sunapee, name='Positions', if_exists='append', index=False)
+
+
+# In[24]:
+
+
+player_positions.to_sql(con=sunapee, name='PlayerPositions', if_exists='append', index=False)
+
+
+# In[25]:
+
+
+managers.to_sql(con=sunapee, name='Managers', if_exists='append', index=False)
+
