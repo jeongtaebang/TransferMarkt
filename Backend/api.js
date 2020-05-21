@@ -278,7 +278,7 @@ router.post("/api/login/", (req, res) => {
         pw: req.body.login_password,
         is_admin: false
     }
-    global.connection.query("SELECT password, clubId, privilege FROM TransferMarkt_sp20.users WHERE Username = ?", [user.username], (error, results, fields) => {
+    global.connection.query("SELECT SaltedPassword, ClubID, AdminPrivilege FROM TransferMarkt_sp20.Managers WHERE Username = ?", [user.username], (error, results, fields) => {
         if (error) throw error;
         console.log(results);
 
@@ -287,11 +287,15 @@ router.post("/api/login/", (req, res) => {
         } else {
             var rows = JSON.parse(JSON.stringify(results[0]));
 
-            bcrypt.compare(user.pw, rows.password, (error, result) => {
+            // for testing node bcrypt output
+            // bcrypt.hash(user.pw, 12, function(err, hash) {
+            //     console.log(hash);
+            // });
+            bcrypt.compare(user.pw, rows.SaltedPassword, (error, result) => {
                 if (error) throw error;
                 if (result) {
-                    user.privilege = privilege;
-                    user.clubId = clubId;
+                    user.privilege = rows.AdminPrivilege;
+                    user.clubId = rows.ClubId;
 
                     jwt.sign({ user }, skey, { expiresIn: '1h' }, (err, token) => {
                         if (err) throw err;
