@@ -123,8 +123,8 @@ router.get("/api/trade/:id", verifyToken, (req, res, next) => {
 });
 
 router.get("/api/trade/", verifyToken, (req, res, next) => {
-    // fetch all packages 
-    var my_query = (userData) => global.connection.query('SELECT p.PackageId, p.Date FROM TransferMarkt_sp20.Packages p, TransferMarkt_sp20.Signatures s WHERE p.PackageId = s.PackageId AND s.clubID = ? AND s.Status = ?', [userData.clubId, null], (error, results, field) => {
+    // fetch all packages addressed to the user's clubID that is not rejected and requires signatures
+    var my_query = (userData) => global.connection.query('SELECT p.PackageId, p.Date FROM TransferMarkt_sp20.Packages p, TransferMarkt_sp20.Signatures s WHERE p.PackageId = s.PackageId AND p.Status <> 0 AND s.clubID = ? AND s.Status = ?', [userData.clubId, null], (error, results, field) => {
        if (error) throw error;
        else res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
     });
@@ -178,9 +178,15 @@ router.put("/api/sign/:id", verifyToken, (req, res) => {
                 if (rows.Approved) next();
             }
     });
+
+    // update package status
+    var update_package = () => global.connection.query('UPDATE TransferMarkt.Package SET Status = Status * ? WHERE PackageId = ?', [req.body.status, req.params.id], (error, results, field) => {
+        if (error) throw error;
+        else console.log(`Package %${req.body.status}% Status Updated.`)
+    });
     
     // update signature entry
-    var update_status = (userData) => global.connection.query('UPDATE TransferMarkt.Signatures SET Status = ? WHERE PackageId = ? AND ClubId = ?', [req.body.status, req.params.id, userData.clubId], (error, results, field) => {
+    var update_signature = (userData) => global.connection.query('UPDATE TransferMarkt.Signatures SET Status = ? WHERE PackageId = ? AND ClubId = ?', [req.body.status, req.params.id, userData.clubId], (error, results, field) => {
         if (error) throw error;
         else res.send(JSON.stringify({"status" : 200, "error" : null, "response" : results}));
         check_complete(insert_to_transfer);
@@ -189,7 +195,11 @@ router.put("/api/sign/:id", verifyToken, (req, res) => {
     jwt.verify(req.token, skey, (err, userData) => {
         if (err) res.status(404).send("Invalid JWT Token");
         else
-            update_status();
+        {
+            // update_package and update_signature don't need to be run synchronously
+            update_package();
+            update_signature(userData);
+        }
     });
 
 });
@@ -226,7 +236,8 @@ router.post("/api/trade/", verifyToken, (req, res) => {
             res.send(JSON.stringify({"status" : 200, "error" : null, "response" : results}));
         }));
 
-    var create_trade = () => global.connection.query('INSERT INTO TransferMarkt.TradePackage VALUES(?, ?)', [packageId, 0], (error, results, field) => {
+    // trade package status defaulted to be accepted for easier backend processing (0 = rejected, 1 = accepted)
+    var create_trade = () => global.connection.query('INSERT INTO TransferMarkt.TradePackage VALUES(?, ?)', [packageId, 1], (error, results, field) => {
         if (error) throw error;
         else
             create_requests();
