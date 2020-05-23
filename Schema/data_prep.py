@@ -207,9 +207,8 @@ for i in range(len(usernames)):
     manager['Password'] = passwords[i]
     bytes_password = passwords[i].encode()
     
-    # decode and remove first 2 chars is to convert from bytes literal to UTF-8 string
-    # and remove python bcrypt's prefix
-    manager['SaltedPassword'] = bcrypt.hashpw(bytes_password, bcrypt.gensalt(rounds=12)).decode()[7:]
+    # decode to convert from bytes literal to UTF-8 string
+    manager['SaltedPassword'] = bcrypt.hashpw(bytes_password, bcrypt.gensalt(rounds=12)).decode()
     
     managers_list.append(manager)
     
@@ -229,7 +228,7 @@ managers = managers.drop("Password", axis=1)
 
 # ## Populate the SQL Database
 
-# In[19]:
+# In[22]:
 
 
 sunapee = db.create_engine('mysql+mysqldb://TransferMarkt_sp20:V2LK^ep$@sunapee.cs.dartmouth.edu:3306/TransferMarkt_sp20', pool_recycle=3600)
@@ -237,38 +236,38 @@ sunapee = db.create_engine('mysql+mysqldb://TransferMarkt_sp20:V2LK^ep$@sunapee.
 
 # #### Insert Tables:
 
-# In[20]:
+# In[25]:
 
 
 leagues.to_sql(con=sunapee, name='Leagues', if_exists='append', index=False)
 
 
-# In[21]:
+# In[26]:
 
 
 # Insert clubs before players to satisfy FK constraints
 clubs.to_sql(con=sunapee, name='Clubs', if_exists='append', index=False)
 
 
-# In[22]:
+# In[27]:
 
 
 players.to_sql(con=sunapee, name='Players', if_exists='append', index=False)
 
 
-# In[23]:
+# In[28]:
 
 
 positions.to_sql(con=sunapee, name='Positions', if_exists='append', index=False)
 
 
-# In[24]:
+# In[29]:
 
 
 player_positions.to_sql(con=sunapee, name='PlayerPositions', if_exists='append', index=False)
 
 
-# In[25]:
+# In[30]:
 
 
 managers.to_sql(con=sunapee, name='Managers', if_exists='append', index=False)

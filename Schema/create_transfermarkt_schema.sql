@@ -1,4 +1,3 @@
--- This schema is as edited version of the forward engineering script. Edited to work with MariaDB
 -- MySQL Workbench Forward Engineering
 
 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
@@ -19,10 +18,10 @@ USE `TransferMarkt_sp20` ;
 -- Table `TransferMarkt_sp20`.`Leagues`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Leagues` (
-  `LeagueID` INT NOT NULL,
-  `LeagueName` VARCHAR(45) NULL,
-  `MinPlayersPerTeam` INT NULL,
-  `SalaryCap` INT NULL,
+  `LeagueID` INT NOT NULL AUTO_INCREMENT,
+  `LeagueName` VARCHAR(45) NOT NULL,
+  `MinPlayersPerTeam` INT NOT NULL,
+  `SalaryCap` INT NOT NULL,
   PRIMARY KEY (`LeagueID`))
 ENGINE = InnoDB;
 
@@ -31,10 +30,10 @@ ENGINE = InnoDB;
 -- Table `TransferMarkt_sp20`.`Clubs`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Clubs` (
-  `ClubID` INT NOT NULL,
-  `ClubName` VARCHAR(150) NULL,
+  `ClubID` INT NOT NULL AUTO_INCREMENT,
+  `ClubName` VARCHAR(150) NOT NULL,
   `LeagueID` INT NOT NULL,
-  PRIMARY KEY (`ClubID`, `LeagueID`),
+  PRIMARY KEY (`ClubID`),
   INDEX `fk_Clubs_League1_idx` (`LeagueID` ASC) ,
   CONSTRAINT `fk_Clubs_League1`
     FOREIGN KEY (`LeagueID`)
@@ -48,14 +47,14 @@ ENGINE = InnoDB;
 -- Table `TransferMarkt_sp20`.`Players`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Players` (
-  `PlayerID` INT NOT NULL,
-  `FirstName` VARCHAR(30) NULL,
-  `LastName` VARCHAR(30) NULL,
-  `Age` INT NULL,
-  `Salary` INT NULL,
-  `ClubID` INT NULL,
+  `PlayerID` INT NOT NULL AUTO_INCREMENT,
+  `FirstName` VARCHAR(30) NOT NULL,
+  `LastName` VARCHAR(30) NOT NULL,
+  `Age` INT NOT NULL,
+  `Salary` INT NOT NULL,
+  `ClubID` INT NOT NULL,
   PRIMARY KEY (`PlayerID`),
-  INDEX `fk_Players_Clubs1_idx` (`ClubID` ASC),
+  INDEX `fk_Players_Clubs1_idx` (`ClubID` ASC) ,
   CONSTRAINT `fk_Players_Clubs1`
     FOREIGN KEY (`ClubID`)
     REFERENCES `TransferMarkt_sp20`.`Clubs` (`ClubID`)
@@ -68,8 +67,8 @@ ENGINE = InnoDB;
 -- Table `TransferMarkt_sp20`.`Positions`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Positions` (
-  `PositionID` INT NOT NULL,
-  `PositionName` VARCHAR(30) NULL,
+  `PositionID` INT NOT NULL AUTO_INCREMENT,
+  `PositionName` VARCHAR(30) NOT NULL,
   PRIMARY KEY (`PositionID`))
 ENGINE = InnoDB;
 
@@ -81,8 +80,8 @@ CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`PlayerPositions` (
   `PlayerID` INT NOT NULL,
   `PositionID` INT NOT NULL,
   PRIMARY KEY (`PlayerID`, `PositionID`),
-  INDEX `fk_Players_has_Positions_Positions1_idx` (`PositionID` ASC),
-  INDEX `fk_Players_has_Positions_Players_idx` (`PlayerID` ASC),
+  INDEX `fk_Players_has_Positions_Positions1_idx` (`PositionID` ASC) ,
+  INDEX `fk_Players_has_Positions_Players_idx` (`PlayerID` ASC) ,
   CONSTRAINT `fk_Players_has_Positions_Players`
     FOREIGN KEY (`PlayerID`)
     REFERENCES `TransferMarkt_sp20`.`Players` (`PlayerID`)
@@ -100,10 +99,10 @@ ENGINE = InnoDB;
 -- Table `TransferMarkt_sp20`.`Managers`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Managers` (
-  `ManagerID` INT NOT NULL,
-  `AdminPrivilege` INT NULL,
-  `Username` VARCHAR(45) NULL,
-  `SaltedPassword` VARCHAR(300) NULL,
+  `ManagerID` INT NOT NULL AUTO_INCREMENT,
+  `AdminPrivilege` INT NOT NULL,
+  `Username` VARCHAR(45) NOT NULL,
+  `SaltedPassword` VARCHAR(300) NOT NULL,
   `ClubID` INT NOT NULL,
   PRIMARY KEY (`ManagerID`),
   INDEX `fk_Managers_Clubs1_idx` (`ClubID` ASC) ,
@@ -120,7 +119,7 @@ ENGINE = InnoDB;
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Packages` (
   `PackageID` INT NOT NULL,
-  `Status` VARCHAR(45) NULL,
+  `Status` VARCHAR(45) NOT NULL,
   PRIMARY KEY (`PackageID`))
 ENGINE = InnoDB;
 
@@ -129,16 +128,16 @@ ENGINE = InnoDB;
 -- Table `TransferMarkt_sp20`.`Requests`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Requests` (
-  `RequestID` INT NOT NULL,
+  `RequestID` INT NOT NULL AUTO_INCREMENT,
   `From` INT NOT NULL,
   `To` INT NOT NULL,
   `PlayerID` INT NOT NULL,
-  `RequestType` VARCHAR(45) NULL,
-  `TransferFee` INT NULL,
-  `NewSalary` INT NULL,
-  `DateOfRequest` DATETIME NULL,
+  `RequestType` VARCHAR(45) NOT NULL,
+  `TransferFee` INT NOT NULL,
+  `NewSalary` INT NOT NULL,
+  `DateOfRequest` DATETIME NOT NULL,
   `Packages_PackageID` INT NOT NULL,
-  PRIMARY KEY (`RequestID`, `PlayerID`, `To`, `From`, `Packages_PackageID`),
+  PRIMARY KEY (`RequestID`),
   INDEX `fk_Requests_Packages1_idx` (`Packages_PackageID` ASC) ,
   INDEX `fk_Requests_Clubs1_idx` (`From` ASC) ,
   INDEX `fk_Requests_Clubs2_idx` (`To` ASC) ,
@@ -171,7 +170,7 @@ ENGINE = InnoDB;
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Transfers` (
   `PackageID` INT NOT NULL,
-  `Date_Signed` DATETIME NULL,
+  `Date_Signed` DATETIME NOT NULL,
   PRIMARY KEY (`PackageID`),
   CONSTRAINT `fk_Transfers_Packages1`
     FOREIGN KEY (`PackageID`)
