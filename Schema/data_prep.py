@@ -79,6 +79,7 @@ print("Clubs remaining:", players['club'].nunique())
 # Create AUTO_INCREMENT id:
 players.reset_index(inplace=True, drop=True)
 players.reset_index(level=0, inplace=True)
+players['index'] += 1
 
 
 # #### Generate Club Table, and dictionary to map Club Names to IDs within the players table
@@ -87,7 +88,7 @@ players.reset_index(level=0, inplace=True)
 
 
 # Convert Club Names into ClubIDs
-club_dict = {k: v for v, k in enumerate(db_clubs)} # converts club name to clubID
+club_dict = {k: v + 1 for v, k in enumerate(db_clubs)} # converts club name to clubID
 players['club'] = players['club'].apply(lambda club: club_dict[club]) # convert within dataframe
 
 
@@ -97,21 +98,18 @@ players['club'] = players['club'].apply(lambda club: club_dict[club]) # convert 
 # create a club dataframe to go along with the players dataframe:
 clubs = pd.DataFrame(db_clubs, columns=['ClubName'])
 clubs.reset_index(level=0, inplace=True)
-clubs['LeagueID'] = 0
+clubs['LeagueID'] = 1
 clubs = clubs.rename(columns={"index": "ClubID"})
+
+# Start from one for autoincrement purposes:
+clubs['ClubID'] += 1
 
 clubs.head()
 
 
-# In[11]:
-
-
-# create managers dataframe to 
-
-
 # #### Generate position dataframe & position to ID dict
 
-# In[12]:
+# In[11]:
 
 
 # Generate position dataframe & id dictionary
@@ -121,18 +119,19 @@ def unique(list1):
 
 # Create lookup table
 pos_list = unique(players['player_positions'].str.split(',').str[0])
-pos_dict = {k: v for v, k in enumerate(pos_list)} # converts club name to clubID
+pos_dict = {k: v + 1 for v, k in enumerate(pos_list)} # converts club name to clubID
 
 # Create Club Dataframe
 positions = pd.DataFrame(pos_list, columns=['PositionName'])
 positions.reset_index(level=0, inplace=True)
 positions = positions.rename(columns={"index": "PositionID"})
+positions['PositionID'] += 1
 positions.head()
 
 
 # #### Break PlayerPositions column into dataframe PlayerPositions (Normalize the DB)
 
-# In[13]:
+# In[12]:
 
 
 # Extract Data
@@ -152,7 +151,7 @@ player_positions.head()
 
 # #### Players table now complete - remove unnessesary columns to finalize
 
-# In[14]:
+# In[13]:
 
 
 # Remove unnessesary data
@@ -162,24 +161,24 @@ players = players.rename(columns={"index": "PlayerID", "first_name": "FirstName"
 players.head()
 
 
-# In[15]:
+# In[14]:
 
 
-sum(players[players['ClubID'] == 1]['Salary']) # Get a sense for how high the salary cap should be
+sum(players[players['ClubID'] == 2]['Salary']) # Get a sense for how high the salary cap should be
 
 
 # #### Create Clubs and Managers DF
 
-# In[16]:
+# In[15]:
 
 
 # Create Clubs DF
-leagues = pd.DataFrame([{'LeagueID': 0, 'LeagueName': 'La Liga Series A', 
+leagues = pd.DataFrame([{'LeagueID': 1, 'LeagueName': 'La Liga Series A', 
                          'SalaryCap': 800000000, 'MinPlayersPerTeam': 20}])
 leagues.head()
 
 
-# In[17]:
+# In[16]:
 
 
 # Create Managers DF
@@ -198,8 +197,8 @@ managers_list = [] # list of dictionaries representing each manager
 # Generate Manager Data
 for i in range(len(usernames)):
     manager = {}
-    manager['ManagerID'] = i
-    manager['ClubID'] = i
+    manager['ManagerID'] = i + 1
+    manager['ClubID'] = i + 1
     manager['Username'] = usernames[i]
     manager['AdminPrivilege'] = 1
     
@@ -215,20 +214,21 @@ for i in range(len(usernames)):
     
 # Create the Manager Table:
 managers = pd.DataFrame(data=managers_list)
+managers['ManagerID'] += 1
 managers.head()
 
 
-# In[18]:
+# In[17]:
 
 
 # Save Manager Info for Reference:
-managers.to_csv("manager_creds.csv")
+managers.to_csv("manager_creds.csv", index=False)
 managers = managers.drop("Password", axis=1)
 
 
 # ## Populate the SQL Database
 
-# In[22]:
+# In[18]:
 
 
 sunapee = db.create_engine('mysql+mysqldb://TransferMarkt_sp20:V2LK^ep$@sunapee.cs.dartmouth.edu:3306/TransferMarkt_sp20', pool_recycle=3600)
@@ -236,38 +236,38 @@ sunapee = db.create_engine('mysql+mysqldb://TransferMarkt_sp20:V2LK^ep$@sunapee.
 
 # #### Insert Tables:
 
-# In[25]:
+# In[19]:
 
 
 leagues.to_sql(con=sunapee, name='Leagues', if_exists='append', index=False)
 
 
-# In[26]:
+# In[20]:
 
 
 # Insert clubs before players to satisfy FK constraints
 clubs.to_sql(con=sunapee, name='Clubs', if_exists='append', index=False)
 
 
-# In[27]:
+# In[21]:
 
 
 players.to_sql(con=sunapee, name='Players', if_exists='append', index=False)
 
 
-# In[28]:
+# In[22]:
 
 
 positions.to_sql(con=sunapee, name='Positions', if_exists='append', index=False)
 
 
-# In[29]:
+# In[23]:
 
 
 player_positions.to_sql(con=sunapee, name='PlayerPositions', if_exists='append', index=False)
 
 
-# In[30]:
+# In[24]:
 
 
 managers.to_sql(con=sunapee, name='Managers', if_exists='append', index=False)

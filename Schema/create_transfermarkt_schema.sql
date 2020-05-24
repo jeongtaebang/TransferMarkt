@@ -58,8 +58,8 @@ CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Players` (
   CONSTRAINT `fk_Players_Clubs1`
     FOREIGN KEY (`ClubID`)
     REFERENCES `TransferMarkt_sp20`.`Clubs` (`ClubID`)
-    ON DELETE SET NULL
-    ON UPDATE CASCADE)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 
@@ -118,8 +118,9 @@ ENGINE = InnoDB;
 -- Table `TransferMarkt_sp20`.`Packages`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Packages` (
-  `PackageID` INT NOT NULL,
-  `Status` VARCHAR(45) NOT NULL,
+  `PackageID` VARCHAR(40) NOT NULL,
+  `Status` INT NOT NULL,
+  `Requests_RequestID` INT NOT NULL,
   PRIMARY KEY (`PackageID`))
 ENGINE = InnoDB;
 
@@ -132,36 +133,35 @@ CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Requests` (
   `From` INT NOT NULL,
   `To` INT NOT NULL,
   `PlayerID` INT NOT NULL,
-  `RequestType` VARCHAR(45) NOT NULL,
   `TransferFee` INT NOT NULL,
   `NewSalary` INT NOT NULL,
   `DateOfRequest` DATETIME NOT NULL,
-  `Packages_PackageID` INT NOT NULL,
+  `PackageID` VARCHAR(40) NOT NULL,
   PRIMARY KEY (`RequestID`),
-  INDEX `fk_Requests_Packages1_idx` (`Packages_PackageID` ASC) ,
-  INDEX `fk_Requests_Clubs1_idx` (`From` ASC) ,
-  INDEX `fk_Requests_Clubs2_idx` (`To` ASC) ,
   INDEX `fk_Requests_Players1_idx` (`PlayerID` ASC) ,
-  CONSTRAINT `fk_Requests_Packages1`
-    FOREIGN KEY (`Packages_PackageID`)
-    REFERENCES `TransferMarkt_sp20`.`Packages` (`PackageID`)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE,
-  CONSTRAINT `fk_Requests_Clubs1`
-    FOREIGN KEY (`From`)
-    REFERENCES `TransferMarkt_sp20`.`Clubs` (`ClubID`)
-    ON DELETE NO ACTION
-    ON UPDATE CASCADE,
-  CONSTRAINT `fk_Requests_Clubs2`
-    FOREIGN KEY (`To`)
-    REFERENCES `TransferMarkt_sp20`.`Clubs` (`ClubID`)
-    ON DELETE NO ACTION
-    ON UPDATE CASCADE,
+  INDEX `fk_Requests_Clubs1_idx` (`To` ASC) ,
+  INDEX `fk_Requests_Clubs2_idx` (`From` ASC) ,
+  INDEX `fk_Requests_Packages1_idx` (`PackageID` ASC) ,
   CONSTRAINT `fk_Requests_Players1`
     FOREIGN KEY (`PlayerID`)
     REFERENCES `TransferMarkt_sp20`.`Players` (`PlayerID`)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_Requests_Clubs_TO`
+    FOREIGN KEY (`To`)
+    REFERENCES `TransferMarkt_sp20`.`Clubs` (`ClubID`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_Requests_Clubs_FROM`
+    FOREIGN KEY (`From`)
+    REFERENCES `TransferMarkt_sp20`.`Clubs` (`ClubID`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_Requests_Packages1`
+    FOREIGN KEY (`PackageID`)
+    REFERENCES `TransferMarkt_sp20`.`Packages` (`PackageID`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 
@@ -169,7 +169,7 @@ ENGINE = InnoDB;
 -- Table `TransferMarkt_sp20`.`Transfers`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Transfers` (
-  `PackageID` INT NOT NULL,
+  `PackageID` VARCHAR(40) NOT NULL,
   `Date_Signed` DATETIME NOT NULL,
   PRIMARY KEY (`PackageID`),
   CONSTRAINT `fk_Transfers_Packages1`
