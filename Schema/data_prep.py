@@ -214,7 +214,6 @@ for i in range(len(usernames)):
     
 # Create the Manager Table:
 managers = pd.DataFrame(data=managers_list)
-managers['ManagerID'] += 1
 managers.head()
 
 
