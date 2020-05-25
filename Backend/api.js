@@ -1,11 +1,13 @@
 var express = require('express');
 let mysql = require('mysql');
-var app = express();
 const bodyParser = require('body-parser');
 var config = require('./config');
 let jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { v1: uuidv1 } = require('uuid');
+
+
+var app = express();
 const saltRound = 10;
 const skey = config.skey;
 
@@ -39,20 +41,20 @@ router.get("/", (_, res) => {
 });
 
 const verifyToken = (req, res, next) => {
-    // const tokHeader = req.headers['authorization'];
-    // if (typeof tokHeader !== undefined) {
-    //     const bearer = tokHeader.split(' ');
-    //     const token = bearer[1];
-    //     req.token = token;
-        next();
-    // } else {
-    //     res.status(404).send("Permission denied");
-    // }
+    const tokHeader = req.headers['authorization'];
+    if (typeof tokHeader !== undefined) {
+        const bearer = tokHeader.split(' ');
+        const token = bearer[1];
+        req.token = token;
+     next();
+    } else {
+        res.status(404).send("Permission denied");
+    }
 }
 
 
 // Match Player Club Id with User's Club Id
-var verifyClub = (playerId, clubId, next) => global.connection.query("SELECT clubId FROM TransferMarkt.players WHERE playerId = ?", [playerId], (error, results, fields) => {
+var verifyClub = (playerId, clubId, next) => global.connection.query("SELECT clubId FROM TransferMarkt.Players WHERE playerId = ?", [playerId], (error, results, fields) => {
     if (error) throw error;
     console.log(results);
     
@@ -66,13 +68,142 @@ var verifyClub = (playerId, clubId, next) => global.connection.query("SELECT clu
 });
 
 
+// SEARCH for player:
+router.get("/api/search_player/", verifyToken, (req, res, next) => {
+	
+	var my_query = () => { 
+	
+		// Get search terms
+		const search_terms = req.body.search_terms;
+		const term_list = search_terms.split(' ');
+		console.log(term_list);
+		
+		// Keep track of search rankings and return response to user
+		var response = "";
+		var search_rankings = {};
+		
+		term_list.forEach((value, index, array) => {
+
+			const term = '%' + value + '%'; // surround with wildcards to find partial matches
+			global.connection.query("SELECT * FROM TransferMarkt_sp20.Players WHERE FirstName LIKE ? OR LastName LIKE ?",
+				[term, term] , (error, results, fields) => {
+
+				if (error) throw error;
+				if (results.length) {
+					// Add returned players to search_rankings dictionary
+					results.forEach((player, index1, array1) => {
+
+						const player_string = JSON.stringify(player)
+						if (!(player_string in search_rankings)) search_rankings[player_string] = 1;
+						else search_rankings[player_string] += 1;
+
+						// When results are finished
+						if (index === array.length - 1 && index1 === array1.length - 1) {
+							
+							// Rank the players returned by number of queries returned
+							var search_results = Object.keys(search_rankings).sort(function(a, b) {
+								    return search_rankings[a] < search_rankings[b];
+							});
+
+							// Top 5 search results:
+							const top_hits = search_results.slice(0,5);
+							const response = '{"status": 200,"error": null,"response":[' + top_hits + ']}';
+							console.log(top_hits);
+        					res.send(response);
+						}
+					});
+				}
+			});
+		});
+	};
+
+	if (typeof req.body.search_terms === undefined || req.body.search_terms.length === 0) {
+		res.status(404).send("No search terms passed in query");
+	} else {
+
+		jwt.verify(req.token, skey, (err, userData) => {
+    	    if (err) {res.status(404).send("Invalid JWT Token")}
+    	    else {
+    	        console.log(userData);
+    	        my_query();
+    	    }
+    	});
+	}
+});
+
+
+// SEARCH for club:
+router.get("/api/search_club/", verifyToken, (req, res, next) => {
+	
+	var my_query = () => { 
+	
+		// Get search terms
+		const search_terms = req.body.search_terms;
+		const term_list = search_terms.split(' ');
+		console.log(term_list);
+		
+		// Keep track of search rankings and return response to user
+		var response = "";
+		var search_rankings = {};
+		
+		term_list.forEach((value, index, array) => {
+
+			const term = '%' + value + '%'; // surround with wildcards to find partial matches
+			global.connection.query("SELECT * FROM TransferMarkt_sp20.Clubs WHERE ClubName LIKE ?",
+				[term] , (error, results, fields) => {
+
+				if (error) throw error;
+				if (results.length) {
+					// Add returned clubs to search_rankings dictionary
+					results.forEach((club, index1, array1) => {
+
+						const club_string = JSON.stringify(club)
+						if (!(club_string in search_rankings)) search_rankings[club_string] = 1;
+						else search_rankings[club_string] += 1;
+
+						// When results are finished
+						if (index === array.length - 1 && index1 === array1.length - 1) {
+							
+							// Rank the clubs returned by number of queries returned
+							var search_results = Object.keys(search_rankings).sort(function(a, b) {
+								    return search_rankings[a] < search_rankings[b];
+							});
+
+							// Top 5 search results:
+							const top_hits = search_results.slice(0,5);
+							const response = '{"status": 200,"error": null,"response":[' + top_hits + ']}';
+							console.log(top_hits);
+        					res.send(response);
+						}
+					});
+				}
+			});
+		});
+	};
+
+	if (typeof req.body.search_terms === undefined || req.body.search_terms.length === 0) {
+		res.status(404).send("No search terms passed in query");
+	} else {
+
+		jwt.verify(req.token, skey, (err, userData) => {
+    	    if (err) {res.status(404).send("Invalid JWT Token")}
+    	    else {
+    	        console.log(userData);
+    	        my_query();
+    	    }
+    	});
+	}
+});
+
+
+
 // GET players
 router.get("/api/players/", verifyToken, (req, res, next) => {
     var FirstName = ("FirstName" in req.params)? req.params.FirstName : "";
     var LastName = ("LastName" in req.params)? req.params.LastName : "";
 
 
-    var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.players WHERE FirstName LIKE ? AND LastName LIKE ?', [`%${FirstName}%`, `%${LastName}%`], (error, results, field) => {
+    var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Players WHERE FirstName LIKE ? AND LastName LIKE ?', [`%${FirstName}%`, `%${LastName}%`], (error, results, field) => {
         if (error) throw error
         res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
     });
@@ -91,19 +222,19 @@ router.get("/api/clubs/", verifyToken, (req, res, next) => {
     var ClubName = ("ClubName" in req.params)? req.params.ClubName : "";
     var ClubId = ("ClubID" in req.params)? req.params.ClubID : "";
 
-    var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.clubs WHERE ClubName LIKE ? AND ClubID LIKE ?', [`%${ClubName}%`, `%${ClubId}%`], (error, results, field) => {
+    var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Clubs WHERE ClubName LIKE ? AND ClubID LIKE ?', [`%${ClubName}%`, `%${ClubId}%`], (error, results, field) => {
         if (error) throw error
         res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
     });
 
     // carry on with queries if token is verified
-    // jwt.verify(req.token, skey, (err, userData) => {
-    //     if (err) res.status(404).send("Invalid JWT Token");
-    //     else {
-    //         console.log(userData);
+    jwt.verify(req.token, skey, (err, userData) => {
+		if (err) res.status(404).send("Invalid JWT Token");
+        else {
+			console.log(userData);
             my_query();
-    //     }
-    // });
+		}
+	});
 });
 
 router.get("/api/trade/:id", verifyToken, (req, res, next) => {
@@ -207,7 +338,7 @@ router.put("/api/sign/:id", verifyToken, (req, res) => {
 // POST
 // New Player
 router.post("/api/players/", verifyToken, (req, res) => {
-    var my_query = () => global.connection.query('INSERT INTO TransferMarkt.players VALUES(?, ?, ?, ?, ?, ?)', [null, req.body.FirstName, req.body.LastName, req.body.Age, req.body.ClubId, req.body.Salary], (error, results, field) => {
+    var my_query = () => global.connection.query('INSERT INTO TransferMarkt.Players VALUES(?, ?, ?, ?, ?, ?)', [null, req.body.FirstName, req.body.LastName, req.body.Age, req.body.ClubId, req.body.Salary], (error, results, field) => {
         if (error) throw error;
         else res.send(JSON.stringify({"status" : 200, "error" : null, "response" : results}));
     });
@@ -255,7 +386,7 @@ router.post("/api/trade/", verifyToken, (req, res) => {
 // Delete player info
 router.delete("/api/players/:id", verifyToken, (req, res) => {
     // callback to delete if admin
-    admin_query = () => global.connection.query('DELETE FROM TransferMarkt_sp20.players WHERE playerId = ?', [req.params.id], (error, results, field) => {
+    admin_query = () => global.connection.query('DELETE FROM TransferMarkt_sp20.Players WHERE playerId = ?', [req.params.id], (error, results, field) => {
         if (error) throw error;
         res.send(JSON.stringify({"status" : 200, "error" : null, "response" : results}));
     });
@@ -271,13 +402,15 @@ router.delete("/api/players/:id", verifyToken, (req, res) => {
 });
 
 
-// // LOGIN
+// LOGIN
 router.post("/api/login/", (req, res) => {
+
     var user = {
         username: req.body.login_username, 
         pw: req.body.login_password,
         is_admin: false
     }
+
     global.connection.query("SELECT SaltedPassword, ClubID, AdminPrivilege FROM TransferMarkt_sp20.Managers WHERE Username = ?", [user.username], (error, results, fields) => {
         if (error) throw error;
         console.log(results);
@@ -289,8 +422,9 @@ router.post("/api/login/", (req, res) => {
 
             // for testing node bcrypt output
             // bcrypt.hash(user.pw, 12, function(err, hash) {
-            //     console.log(hash);
+			// 	console.log(hash);
             // });
+
             bcrypt.compare(user.pw, rows.SaltedPassword, (error, result) => {
                 if (error) throw error;
                 if (result) {
