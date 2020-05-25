@@ -75,7 +75,7 @@ router.get("/api/search_player/", verifyToken, (req, res, next) => {
 	
 		// Get search terms
 		const search_terms = req.body.search_terms;
-		const term_list = search_terms.split(' ');
+		const term_list = search_terms.toLowerCase().split(' ');
 		console.log(term_list);
 		
 		// Keep track of search rankings and return response to user
@@ -85,7 +85,7 @@ router.get("/api/search_player/", verifyToken, (req, res, next) => {
 		term_list.forEach((value, index, array) => {
 
 			const term = '%' + value + '%'; // surround with wildcards to find partial matches
-			global.connection.query("SELECT * FROM TransferMarkt_sp20.Players WHERE FirstName LIKE ? OR LastName LIKE ?",
+			global.connection.query("SELECT * FROM TransferMarkt_sp20.Players WHERE LOWER(FirstName) LIKE ? OR LOWER(LastName) LIKE ?",
 				[term, term] , (error, results, fields) => {
 
 				if (error) throw error;
@@ -99,16 +99,26 @@ router.get("/api/search_player/", verifyToken, (req, res, next) => {
 
 						// When results are finished
 						if (index === array.length - 1 && index1 === array1.length - 1) {
+
+							// Create 2D array of dictionary entries:
+							var search_results = Object.keys(search_rankings).map(function(key) {
+								return [key, search_rankings[key]];
+							});
 							
-							// Rank the players returned by number of queries returned
-							var search_results = Object.keys(search_rankings).sort(function(a, b) {
-								    return search_rankings[a] < search_rankings[b];
+							// Rank the clubs returned by number of queries returned
+							search_results.sort(function(first, second) {
+								return second[1] - first[1];
 							});
 
+							// Return only player information (drop # of queries returned)
+							var results_list = Object.values(search_results).map(function(value) {
+								return value[0];
+							});
+							
 							// Top 5 search results:
-							const top_hits = search_results.slice(0,5);
+							console.log(search_results.slice(0,5)); // uncomment for debugging
+							const top_hits = results_list.slice(0,5);
 							const response = '{"status": 200,"error": null,"response":[' + top_hits + ']}';
-							console.log(top_hits);
         					res.send(response);
 						}
 					});
@@ -139,7 +149,7 @@ router.get("/api/search_club/", verifyToken, (req, res, next) => {
 	
 		// Get search terms
 		const search_terms = req.body.search_terms;
-		const term_list = search_terms.split(' ');
+		const term_list = search_terms.toLowerCase().split(' ');
 		console.log(term_list);
 		
 		// Keep track of search rankings and return response to user
@@ -149,7 +159,7 @@ router.get("/api/search_club/", verifyToken, (req, res, next) => {
 		term_list.forEach((value, index, array) => {
 
 			const term = '%' + value + '%'; // surround with wildcards to find partial matches
-			global.connection.query("SELECT * FROM TransferMarkt_sp20.Clubs WHERE ClubName LIKE ?",
+			global.connection.query("SELECT * FROM TransferMarkt_sp20.Clubs WHERE LOWER(ClubName) LIKE ?",
 				[term] , (error, results, fields) => {
 
 				if (error) throw error;
@@ -163,16 +173,26 @@ router.get("/api/search_club/", verifyToken, (req, res, next) => {
 
 						// When results are finished
 						if (index === array.length - 1 && index1 === array1.length - 1) {
+
+							// Create 2D array of dictionary entries:
+							var search_results = Object.keys(search_rankings).map(function(key) {
+								return [key, search_rankings[key]];
+							});
 							
 							// Rank the clubs returned by number of queries returned
-							var search_results = Object.keys(search_rankings).sort(function(a, b) {
-								    return search_rankings[a] < search_rankings[b];
+							search_results.sort(function(first, second) {
+								return second[1] - first[1];
 							});
 
+							// Return only player information (drop # of queries returned)
+							var results_list = Object.values(search_results).map(function(value) {
+								return value[0];
+							});
+							
 							// Top 5 search results:
-							const top_hits = search_results.slice(0,5);
+							console.log(search_results.slice(0,5)); // uncomment for debugging
+							const top_hits = results_list.slice(0,5);
 							const response = '{"status": 200,"error": null,"response":[' + top_hits + ']}';
-							console.log(top_hits);
         					res.send(response);
 						}
 					});
