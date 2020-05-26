@@ -44,7 +44,7 @@ router.get("/", (_, res) => {
 });
 
 
-// Verify JWT Token
+// Check presence of JWT Token (in HTTP request)
 const verifyToken = (req, res, next) => {
     const tokHeader = req.headers['authorization'];
     if (typeof tokHeader !== undefined) {
@@ -505,7 +505,7 @@ router.post("/api/login/", (req, res) => {
                     user.privilege = rows.AdminPrivilege;
                     user.clubId = rows.ClubID;
 
-                    jwt.sign({ user }, skey, { expiresIn: '1h' }, (err, token) => {
+                    jwt.sign({ user }, skey, {}, (err, token) => {
                         if (err) throw err;
                         res.send(JSON.stringify({ "status": 200, "error": null, 
                         "response": token, "clubId": rows.ClubID }));
