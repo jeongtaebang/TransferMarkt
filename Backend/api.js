@@ -5,6 +5,7 @@ var config = require('./config');
 let jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { v1: uuidv1 } = require('uuid');
+var cors = require('cors')
 
 
 var app = express();
@@ -25,6 +26,8 @@ app.use((req, res, next) => {
 
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json());
+
+app.use(cors())
 
 // initialize router
 var router = express.Router();
@@ -269,6 +272,7 @@ router.get("/api/clubs/:id", verifyToken, (req, res, next) => {
     var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Clubs WHERE ClubID = ?', 
 		[req.params.id], (error, results, field) => {
         if (error) throw error
+        // console.log("players got: "+ JSON.stringify(results));
         res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
     });
 
@@ -305,7 +309,7 @@ router.get("/api/clubs/", verifyToken, (req, res, next) => {
 
 // GET Trade by ID:
 router.get("/api/trade/:id", verifyToken, (req, res, next) => {
-    var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Requests WHERE PackageID = ?', [req.params.id], (error, results, field) => {
+    var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Requests WHERE PackageID = ?', [req.query.id], (error, results, field) => {
        if (error) throw error;
        else res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
     });
@@ -314,7 +318,7 @@ router.get("/api/trade/:id", verifyToken, (req, res, next) => {
     jwt.verify(req.token, skey, (err, userData) => {
         if (err) res.status(404).send("Invalid JWT Token");
         else {
-            console.log(userData);
+            // console.log(userData);
             my_query();
         }
     });
@@ -332,7 +336,7 @@ router.get("/api/trade/", verifyToken, (req, res, next) => {
     jwt.verify(req.token, skey, (err, userData) => {
         if (err) res.status(404).send("Invalid JWT Token");
         else {
-            console.log(userData);
+            // console.log("userData in get trade: "+ JSON.stringify(userData));
             my_query(userData);
         }
     });
@@ -497,11 +501,12 @@ router.post("/api/login/", (req, res) => {
                 if (error) throw error;
                 if (result) {
                     user.privilege = rows.AdminPrivilege;
-                    user.clubId = rows.ClubId;
+                    user.clubId = rows.ClubID;
 
                     jwt.sign({ user }, skey, { expiresIn: '1h' }, (err, token) => {
                         if (err) throw err;
-                        res.send(JSON.stringify({ "status": 200, "error": null, "response": token }));
+                        res.send(JSON.stringify({ "status": 200, "error": null, 
+                        "response": token, "clubId": rows.ClubID }));
                     });
                 } else {
                     res.status(404).send("Wrong ID or Password");
