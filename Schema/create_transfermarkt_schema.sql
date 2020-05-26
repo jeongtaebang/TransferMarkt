@@ -77,7 +77,7 @@ DEFAULT CHARACTER SET = latin1;
 CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Packages` (
   `PackageID` VARCHAR(40) NOT NULL,
   `Status` INT(11) NOT NULL,
-  `Requests_RequestID` INT(11) NOT NULL,
+  `Date` DATE NOT NULL,
   PRIMARY KEY (`PackageID`))
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = latin1;
@@ -150,7 +150,7 @@ CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Requests` (
   `PlayerID` INT(11) NOT NULL,
   `TransferFee` INT(11) NOT NULL,
   `NewSalary` INT(11) NOT NULL,
-  `DateOfRequest` DATETIME NOT NULL,
+  `DateOfRequest` DATE NOT NULL,
   `PackageID` VARCHAR(40) NOT NULL,
   PRIMARY KEY (`RequestID`),
   INDEX `fk_Requests_Players1_idx` (`PlayerID` ASC) ,
@@ -186,7 +186,7 @@ DEFAULT CHARACTER SET = latin1;
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Transfers` (
   `PackageID` VARCHAR(40) NOT NULL,
-  `Date_Signed` DATETIME NOT NULL,
+  `Date_Signed` DATE NOT NULL,
   PRIMARY KEY (`PackageID`),
   CONSTRAINT `fk_Transfers_Packages1`
     FOREIGN KEY (`PackageID`)
