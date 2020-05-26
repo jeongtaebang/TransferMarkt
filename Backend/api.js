@@ -5,6 +5,7 @@ var config = require('./config');
 let jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { v1: uuidv1 } = require('uuid');
+var cors = require('cors')
 
 
 var app = express();
@@ -25,6 +26,8 @@ app.use((req, res, next) => {
 
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json());
+
+app.use(cors())
 
 // initialize router
 var router = express.Router();
@@ -424,6 +427,8 @@ router.delete("/api/players/:id", verifyToken, (req, res) => {
 
 // LOGIN
 router.post("/api/login/", (req, res) => {
+
+    console.log("req body: "+ JSON.stringify(req.body));
 
     var user = {
         username: req.body.login_username, 
