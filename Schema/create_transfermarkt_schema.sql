@@ -5,34 +5,39 @@ SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 
 -- -----------------------------------------------------
+-- Schema mydb
+-- -----------------------------------------------------
+-- -----------------------------------------------------
 -- Schema TransferMarkt_sp20
 -- -----------------------------------------------------
 
 -- -----------------------------------------------------
 -- Schema TransferMarkt_sp20
 -- -----------------------------------------------------
-CREATE SCHEMA IF NOT EXISTS `TransferMarkt_sp20` DEFAULT CHARACTER SET utf8 ;
+CREATE SCHEMA IF NOT EXISTS `TransferMarkt_sp20` DEFAULT CHARACTER SET latin1 ;
 USE `TransferMarkt_sp20` ;
 
 -- -----------------------------------------------------
 -- Table `TransferMarkt_sp20`.`Leagues`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Leagues` (
-  `LeagueID` INT NOT NULL AUTO_INCREMENT,
+  `LeagueID` INT(11) NOT NULL AUTO_INCREMENT,
   `LeagueName` VARCHAR(45) NOT NULL,
-  `MinPlayersPerTeam` INT NOT NULL,
-  `SalaryCap` INT NOT NULL,
+  `MinPlayersPerTeam` INT(11) NOT NULL,
+  `SalaryCap` INT(11) NOT NULL,
   PRIMARY KEY (`LeagueID`))
-ENGINE = InnoDB;
+ENGINE = InnoDB
+AUTO_INCREMENT = 2
+DEFAULT CHARACTER SET = latin1;
 
 
 -- -----------------------------------------------------
 -- Table `TransferMarkt_sp20`.`Clubs`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Clubs` (
-  `ClubID` INT NOT NULL AUTO_INCREMENT,
+  `ClubID` INT(11) NOT NULL AUTO_INCREMENT,
   `ClubName` VARCHAR(150) NOT NULL,
-  `LeagueID` INT NOT NULL,
+  `LeagueID` INT(11) NOT NULL,
   PRIMARY KEY (`ClubID`),
   INDEX `fk_Clubs_League1_idx` (`LeagueID` ASC) ,
   CONSTRAINT `fk_Clubs_League1`
@@ -40,19 +45,54 @@ CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Clubs` (
     REFERENCES `TransferMarkt_sp20`.`Leagues` (`LeagueID`)
     ON DELETE CASCADE
     ON UPDATE CASCADE)
-ENGINE = InnoDB;
+ENGINE = InnoDB
+AUTO_INCREMENT = 21
+DEFAULT CHARACTER SET = latin1;
+
+
+-- -----------------------------------------------------
+-- Table `TransferMarkt_sp20`.`Managers`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Managers` (
+  `ManagerID` INT(11) NOT NULL AUTO_INCREMENT,
+  `AdminPrivilege` INT(11) NOT NULL,
+  `Username` VARCHAR(45) NOT NULL,
+  `SaltedPassword` VARCHAR(300) NOT NULL,
+  `ClubID` INT(11) NOT NULL,
+  PRIMARY KEY (`ManagerID`),
+  INDEX `fk_Managers_Clubs1_idx` (`ClubID` ASC) ,
+  CONSTRAINT `fk_Managers_Clubs1`
+    FOREIGN KEY (`ClubID`)
+    REFERENCES `TransferMarkt_sp20`.`Clubs` (`ClubID`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
+ENGINE = InnoDB
+AUTO_INCREMENT = 21
+DEFAULT CHARACTER SET = latin1;
+
+
+-- -----------------------------------------------------
+-- Table `TransferMarkt_sp20`.`Packages`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Packages` (
+  `PackageID` VARCHAR(40) NOT NULL,
+  `Status` INT(11) NOT NULL,
+  `Requests_RequestID` INT(11) NOT NULL,
+  PRIMARY KEY (`PackageID`))
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = latin1;
 
 
 -- -----------------------------------------------------
 -- Table `TransferMarkt_sp20`.`Players`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Players` (
-  `PlayerID` INT NOT NULL AUTO_INCREMENT,
+  `PlayerID` INT(11) NOT NULL AUTO_INCREMENT,
   `FirstName` VARCHAR(30) NOT NULL,
   `LastName` VARCHAR(30) NOT NULL,
-  `Age` INT NOT NULL,
-  `Salary` INT NOT NULL,
-  `ClubID` INT NOT NULL,
+  `Age` INT(11) NOT NULL,
+  `Salary` INT(11) NOT NULL,
+  `ClubID` INT(11) NOT NULL,
   PRIMARY KEY (`PlayerID`),
   INDEX `fk_Players_Clubs1_idx` (`ClubID` ASC) ,
   CONSTRAINT `fk_Players_Clubs1`
@@ -60,25 +100,29 @@ CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Players` (
     REFERENCES `TransferMarkt_sp20`.`Clubs` (`ClubID`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
-ENGINE = InnoDB;
+ENGINE = InnoDB
+AUTO_INCREMENT = 628
+DEFAULT CHARACTER SET = latin1;
 
 
 -- -----------------------------------------------------
 -- Table `TransferMarkt_sp20`.`Positions`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Positions` (
-  `PositionID` INT NOT NULL AUTO_INCREMENT,
+  `PositionID` INT(11) NOT NULL AUTO_INCREMENT,
   `PositionName` VARCHAR(30) NOT NULL,
   PRIMARY KEY (`PositionID`))
-ENGINE = InnoDB;
+ENGINE = InnoDB
+AUTO_INCREMENT = 16
+DEFAULT CHARACTER SET = latin1;
 
 
 -- -----------------------------------------------------
 -- Table `TransferMarkt_sp20`.`PlayerPositions`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`PlayerPositions` (
-  `PlayerID` INT NOT NULL,
-  `PositionID` INT NOT NULL,
+  `PlayerID` INT(11) NOT NULL,
+  `PositionID` INT(11) NOT NULL,
   PRIMARY KEY (`PlayerID`, `PositionID`),
   INDEX `fk_Players_has_Positions_Positions1_idx` (`PositionID` ASC) ,
   INDEX `fk_Players_has_Positions_Players_idx` (`PlayerID` ASC) ,
@@ -92,49 +136,20 @@ CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`PlayerPositions` (
     REFERENCES `TransferMarkt_sp20`.`Positions` (`PositionID`)
     ON DELETE CASCADE
     ON UPDATE CASCADE)
-ENGINE = InnoDB;
-
-
--- -----------------------------------------------------
--- Table `TransferMarkt_sp20`.`Managers`
--- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Managers` (
-  `ManagerID` INT NOT NULL AUTO_INCREMENT,
-  `AdminPrivilege` INT NOT NULL,
-  `Username` VARCHAR(45) NOT NULL,
-  `SaltedPassword` VARCHAR(300) NOT NULL,
-  `ClubID` INT NOT NULL,
-  PRIMARY KEY (`ManagerID`),
-  INDEX `fk_Managers_Clubs1_idx` (`ClubID` ASC) ,
-  CONSTRAINT `fk_Managers_Clubs1`
-    FOREIGN KEY (`ClubID`)
-    REFERENCES `TransferMarkt_sp20`.`Clubs` (`ClubID`)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE)
-ENGINE = InnoDB;
-
-
--- -----------------------------------------------------
--- Table `TransferMarkt_sp20`.`Packages`
--- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Packages` (
-  `PackageID` VARCHAR(40) NOT NULL,
-  `Status` INT NOT NULL,
-  `Requests_RequestID` INT NOT NULL,
-  PRIMARY KEY (`PackageID`))
-ENGINE = InnoDB;
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = latin1;
 
 
 -- -----------------------------------------------------
 -- Table `TransferMarkt_sp20`.`Requests`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Requests` (
-  `RequestID` INT NOT NULL AUTO_INCREMENT,
-  `From` INT NOT NULL,
-  `To` INT NOT NULL,
-  `PlayerID` INT NOT NULL,
-  `TransferFee` INT NOT NULL,
-  `NewSalary` INT NOT NULL,
+  `RequestID` INT(11) NOT NULL AUTO_INCREMENT,
+  `From` INT(11) NOT NULL,
+  `To` INT(11) NOT NULL,
+  `PlayerID` INT(11) NOT NULL,
+  `TransferFee` INT(11) NOT NULL,
+  `NewSalary` INT(11) NOT NULL,
   `DateOfRequest` DATETIME NOT NULL,
   `PackageID` VARCHAR(40) NOT NULL,
   PRIMARY KEY (`RequestID`),
@@ -142,9 +157,9 @@ CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Requests` (
   INDEX `fk_Requests_Clubs1_idx` (`To` ASC) ,
   INDEX `fk_Requests_Clubs2_idx` (`From` ASC) ,
   INDEX `fk_Requests_Packages1_idx` (`PackageID` ASC) ,
-  CONSTRAINT `fk_Requests_Players1`
-    FOREIGN KEY (`PlayerID`)
-    REFERENCES `TransferMarkt_sp20`.`Players` (`PlayerID`)
+  CONSTRAINT `fk_Requests_Clubs_FROM`
+    FOREIGN KEY (`From`)
+    REFERENCES `TransferMarkt_sp20`.`Clubs` (`ClubID`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_Requests_Clubs_TO`
@@ -152,17 +167,18 @@ CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Requests` (
     REFERENCES `TransferMarkt_sp20`.`Clubs` (`ClubID`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
-  CONSTRAINT `fk_Requests_Clubs_FROM`
-    FOREIGN KEY (`From`)
-    REFERENCES `TransferMarkt_sp20`.`Clubs` (`ClubID`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION,
   CONSTRAINT `fk_Requests_Packages1`
     FOREIGN KEY (`PackageID`)
     REFERENCES `TransferMarkt_sp20`.`Packages` (`PackageID`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  CONSTRAINT `fk_Requests_Players1`
+    FOREIGN KEY (`PlayerID`)
+    REFERENCES `TransferMarkt_sp20`.`Players` (`PlayerID`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
-ENGINE = InnoDB;
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = latin1;
 
 
 -- -----------------------------------------------------
@@ -175,6 +191,29 @@ CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Transfers` (
   CONSTRAINT `fk_Transfers_Packages1`
     FOREIGN KEY (`PackageID`)
     REFERENCES `TransferMarkt_sp20`.`Packages` (`PackageID`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = latin1;
+
+
+-- -----------------------------------------------------
+-- Table `TransferMarkt_sp20`.`Signatures`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Signatures` (
+  `PackageID` VARCHAR(40) NOT NULL,
+  `ClubID` INT(11) NOT NULL,
+  `Status` INT(11) NOT NULL,
+  PRIMARY KEY (`PackageID`, `ClubID`),
+  INDEX `fk_Signatures_Clubs1_idx` (`ClubID` ASC) ,
+  CONSTRAINT `fk_Signatures_Packages1`
+    FOREIGN KEY (`PackageID`)
+    REFERENCES `TransferMarkt_sp20`.`Packages` (`PackageID`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_Signatures_Clubs1`
+    FOREIGN KEY (`ClubID`)
+    REFERENCES `TransferMarkt_sp20`.`Clubs` (`ClubID`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
