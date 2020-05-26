@@ -77,7 +77,7 @@ router.get("/api/search_player/", verifyToken, (req, res, next) => {
 	var my_query = () => { 
 	
 		// Get search terms
-		const search_terms = req.body.search_terms;
+		const search_terms = req.query.search_terms;
 		const term_list = search_terms.toLowerCase().split(' ');
 		console.log(term_list);
 		
@@ -130,7 +130,7 @@ router.get("/api/search_player/", verifyToken, (req, res, next) => {
 		});
 	};
 
-	if (typeof req.body.search_terms === undefined || req.body.search_terms.length === 0) {
+	if (typeof req.query.search_terms === undefined || req.query.search_terms.length === 0) {
 		res.status(404).send("No search terms passed in query");
 	} else {
 
@@ -151,7 +151,7 @@ router.get("/api/search_club/", verifyToken, (req, res, next) => {
 	var my_query = () => { 
 	
 		// Get search terms
-		const search_terms = req.body.search_terms;
+		const search_terms = req.query.search_terms;
 		const term_list = search_terms.toLowerCase().split(' ');
 		console.log(term_list);
 		
@@ -204,7 +204,7 @@ router.get("/api/search_club/", verifyToken, (req, res, next) => {
 		});
 	};
 
-	if (typeof req.body.search_terms === undefined || req.body.search_terms.length === 0) {
+	if (typeof req.query.search_terms === undefined || req.query.search_terms.length === 0) {
 		res.status(404).send("No search terms passed in query");
 	} else {
 
@@ -247,7 +247,7 @@ verifyToken,
 router.get("/api/clubs/", verifyToken, (req, res, next) => {
     var ClubName = ("ClubName" in req.query)? req.query.ClubName : "";
     var ClubId = ("ClubID" in req.query)? req.query.ClubID : "";
-    
+
     var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Clubs WHERE ClubName LIKE ? AND ClubID LIKE ?', [`%${ClubName}%`, `%${ClubId}%`], (error, results, field) => {
         if (error) throw error
         res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
