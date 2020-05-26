@@ -221,13 +221,16 @@ router.get("/api/search_club/", verifyToken, (req, res, next) => {
 
 
 // GET players
-router.get("/api/players/", verifyToken, (req, res, next) => {
-    var FirstName = ("FirstName" in req.params)? req.params.FirstName : "";
-    var LastName = ("LastName" in req.params)? req.params.LastName : "";
+router.get("/api/players/", 
+verifyToken, 
+(req, res, next) => {
 
+    var FirstName = ("FirstName" in req.query)? req.query.FirstName : "";
+    var LastName = ("LastName" in req.query)? req.query.LastName : "";
 
     var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Players WHERE FirstName LIKE ? AND LastName LIKE ?', [`%${FirstName}%`, `%${LastName}%`], (error, results, field) => {
         if (error) throw error
+        // console.log("players got: "+ JSON.stringify(results));
         res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
     });
 
@@ -242,9 +245,9 @@ router.get("/api/players/", verifyToken, (req, res, next) => {
 });
 
 router.get("/api/clubs/", verifyToken, (req, res, next) => {
-    var ClubName = ("ClubName" in req.params)? req.params.ClubName : "";
-    var ClubId = ("ClubID" in req.params)? req.params.ClubID : "";
-
+    var ClubName = ("ClubName" in req.query)? req.query.ClubName : "";
+    var ClubId = ("ClubID" in req.query)? req.query.ClubID : "";
+    
     var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Clubs WHERE ClubName LIKE ? AND ClubID LIKE ?', [`%${ClubName}%`, `%${ClubId}%`], (error, results, field) => {
         if (error) throw error
         res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
@@ -261,7 +264,7 @@ router.get("/api/clubs/", verifyToken, (req, res, next) => {
 });
 
 router.get("/api/trade/:id", verifyToken, (req, res, next) => {
-    var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Requests WHERE PackageID = ?', [req.params.id], (error, results, field) => {
+    var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Requests WHERE PackageID = ?', [req.query.id], (error, results, field) => {
        if (error) throw error;
        else res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
     });
@@ -270,7 +273,7 @@ router.get("/api/trade/:id", verifyToken, (req, res, next) => {
     jwt.verify(req.token, skey, (err, userData) => {
         if (err) res.status(404).send("Invalid JWT Token");
         else {
-            console.log(userData);
+            // console.log(userData);
             my_query();
         }
     });
@@ -287,7 +290,7 @@ router.get("/api/trade/", verifyToken, (req, res, next) => {
     jwt.verify(req.token, skey, (err, userData) => {
         if (err) res.status(404).send("Invalid JWT Token");
         else {
-            console.log(userData);
+            // console.log("userData in get trade: "+ JSON.stringify(userData));
             my_query(userData);
         }
     });
@@ -428,8 +431,6 @@ router.delete("/api/players/:id", verifyToken, (req, res) => {
 // LOGIN
 router.post("/api/login/", (req, res) => {
 
-    console.log("req body: "+ JSON.stringify(req.body));
-
     var user = {
         username: req.body.login_username, 
         pw: req.body.login_password,
@@ -454,11 +455,12 @@ router.post("/api/login/", (req, res) => {
                 if (error) throw error;
                 if (result) {
                     user.privilege = rows.AdminPrivilege;
-                    user.clubId = rows.ClubId;
+                    user.clubId = rows.ClubID;
 
                     jwt.sign({ user }, skey, { expiresIn: '1h' }, (err, token) => {
                         if (err) throw err;
-                        res.send(JSON.stringify({ "status": 200, "error": null, "response": token }));
+                        res.send(JSON.stringify({ "status": 200, "error": null, 
+                        "response": token, "clubId": rows.ClubID }));
                     });
                 } else {
                     res.status(404).send("Wrong ID or Password");
