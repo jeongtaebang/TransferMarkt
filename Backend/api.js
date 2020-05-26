@@ -43,6 +43,8 @@ router.get("/", (_, res) => {
     res.send("Transfer Market");
 });
 
+
+// Verify JWT Token
 const verifyToken = (req, res, next) => {
     const tokHeader = req.headers['authorization'];
     if (typeof tokHeader !== undefined) {
@@ -81,8 +83,7 @@ router.get("/api/search_player/", verifyToken, (req, res, next) => {
 		const term_list = search_terms.toLowerCase().split(' ');
 		console.log(term_list);
 		
-		// Keep track of search rankings and return response to user
-		var response = "";
+		// Keep track of search rankings
 		var search_rankings = {};
 		
 		term_list.forEach((value, index, array) => {
@@ -219,16 +220,57 @@ router.get("/api/search_club/", verifyToken, (req, res, next) => {
 });
 
 
+// GET single player:
+router.get("/api/players/:id", verifyToken, (req, res, next) => {
 
-// GET players
-router.get("/api/players/", 
-verifyToken, 
-(req, res, next) => {
+    var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Players WHERE PlayerID = ?', 
+		[req.query.id], (error, results, field) => {
+        if (error) throw error
+        res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
+    });
 
-    var FirstName = ("FirstName" in req.query)? req.query.FirstName : "";
-    var LastName = ("LastName" in req.query)? req.query.LastName : "";
+    // carry on with queries if token is verified
+    jwt.verify(req.token, skey, (err, userData) => {
+        if (err) {res.status(404).send("Invalid JWT Token")}
+        else {
+            console.log(userData);
+            my_query();
+        }
+    });
+});
 
-    var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Players WHERE FirstName LIKE ? AND LastName LIKE ?', [`%${FirstName}%`, `%${LastName}%`], (error, results, field) => {
+
+// GET all players (if no ClubID passed) or all players within a single club (if clubID passed)
+router.get("/api/players/", verifyToken, (req, res, next) => {
+
+    var my_query = () => {
+
+		var query_str = 'SELECT * FROM TransferMarkt_sp20.Players'
+		if (req.body.club_id !== undefined) query_str = 'SELECT * FROM TransferMarkt_sp20.Players WHERE ClubID = ?'
+
+		global.connection.query(query_str, [req.body.club_id],
+			(error, results, field) => {
+        	if (error) throw error
+        	res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
+    	});
+	}
+
+    // carry on with queries if token is verified
+    jwt.verify(req.token, skey, (err, userData) => {
+        if (err) {res.status(404).send("Invalid JWT Token")}
+        else {
+            console.log(userData);
+            my_query();
+        }
+    });
+});
+
+
+// GET Single Club:
+router.get("/api/clubs/:id", verifyToken, (req, res, next) => {
+
+    var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Clubs WHERE ClubID = ?', 
+		[req.query.id], (error, results, field) => {
         if (error) throw error
         // console.log("players got: "+ JSON.stringify(results));
         res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
@@ -244,11 +286,12 @@ verifyToken,
     });
 });
 
-router.get("/api/clubs/", verifyToken, (req, res, next) => {
-    var ClubName = ("ClubName" in req.query)? req.query.ClubName : "";
-    var ClubId = ("ClubID" in req.query)? req.query.ClubID : "";
 
-    var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Clubs WHERE ClubName LIKE ? AND ClubID LIKE ?', [`%${ClubName}%`, `%${ClubId}%`], (error, results, field) => {
+// GET All Clubs
+router.get("/api/clubs/", verifyToken, (req, res, next) => {
+
+    var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Clubs', 
+		(error, results, field) => {
         if (error) throw error
         res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
     });
@@ -263,8 +306,11 @@ router.get("/api/clubs/", verifyToken, (req, res, next) => {
 	});
 });
 
+
+// GET Trade by ID:
 router.get("/api/trade/:id", verifyToken, (req, res, next) => {
-    var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Requests WHERE PackageID = ?', [req.query.id], (error, results, field) => {
+    var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Requests WHERE PackageID = ?', 
+    [req.query.id], (error, results, field) => {
        if (error) throw error;
        else res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
     });
@@ -279,9 +325,11 @@ router.get("/api/trade/:id", verifyToken, (req, res, next) => {
     });
 });
 
+
+// Fetch all packages addressed to the user's clubID that is not rejected and requires signatures
 router.get("/api/trade/", verifyToken, (req, res, next) => {
-    // fetch all packages addressed to the user's clubID that is not rejected and requires signatures
-    var my_query = (userData) => global.connection.query('SELECT p.PackageId, p.Date FROM TransferMarkt_sp20.Packages p, TransferMarkt_sp20.Signatures s WHERE p.PackageId = s.PackageId AND p.Status <> 0 AND s.clubID = ? AND s.Status = ?', [userData.clubId, null], (error, results, field) => {
+    var my_query = (userData) => global.connection.query('SELECT p.PackageId, p.Date FROM TransferMarkt_sp20.Packages p, TransferMarkt_sp20.Signatures s WHERE p.PackageId = s.PackageId AND p.Status <> 0 AND s.clubID = ? AND s.Status = ?', 
+    [userData.clubId, null], (error, results, field) => {
        if (error) throw error;
        else res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
     });
