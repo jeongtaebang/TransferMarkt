@@ -106,10 +106,10 @@ var createPackage = (packageID) => {
     };
 };
 
-var createSignature = (body, packageID) => {
+var createSignature = (clubID, packageID) => {
     return {
         PackageID : packageID,
-        ClubID : body.To,
+        ClubID : clubID,
         Status : -1
     };
 };
@@ -390,8 +390,8 @@ router.get("/api/trade/:id", verifyToken, (req, res, next) => {
 
 // Fetch all packages addressed to the user's clubID that is not rejected and requires signatures
 router.get("/api/trade/", verifyToken, (req, res, next) => {
-    var my_query = (userData) => global.connection.query('SELECT p.PackageId, p.Date FROM TransferMarkt_sp20.Packages p, TransferMarkt_sp20.Signatures s WHERE p.PackageId = s.PackageId AND p.Status <> 0 AND s.clubID = ? AND s.Status = ?', 
-    [userData.user.clubId, null], (error, results, field) => {
+    var my_query = (userData) => global.connection.query('SELECT p.PackageID, p.Status, p.Date FROM TransferMarkt_sp20.Packages p, TransferMarkt_sp20.Signatures s WHERE p.PackageId = s.PackageId AND p.Status = 1 AND s.ClubID = ? AND s.Status = ?', 
+    [userData.user.clubId, -1], (error, results, field) => {
        if (error) throw error;
        else res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
     });
@@ -531,15 +531,27 @@ router.post("/api/trade/", verifyToken, (req, res) => {
     
     var packageID = uuidv1();
 
+    var teams = new Set();
+
     var create_requests = () => req.body.requests.forEach((request) =>
     {
         global.connection.query('INSERT INTO TransferMarkt_sp20.Requests VALUES(?)', [Object.values(createRequest(request, packageID))], (error, results, field) => {
             if (error) throw error;
+            else if (!teams.has(request.To))
+            {
+                teams.add(request.To);
+                global.connection.query('INSERT INTO TransferMarkt_sp20.Signatures VALUES(?)', [Object.values(createSignature(request.To, packageID))], (error, results, field) => {
+                    if (error) throw error;
+                });
+            }
+            else if (!teams.has(request.From))
+            {
+                teams.add(request.From);
+                global.connection.query('INSERT INTO TransferMarkt_sp20.Signatures VALUES(?)', [Object.values(createSignature(request.From, packageID))], (error, results, field) => {
+                    if (error) throw error;
+                });
+            }
         });
-
-        global.connection.query('INSERT INTO TransferMarkt_sp20.Signatures VALUES(?)', [Object.values(createSignature(request, packageID))], (error, results, field) => {
-            if (error) throw error;
-        });      
     });
 
     // trade package status defaulted to be accepted for easier backend processing (0 = rejected, 1 = accepted)
