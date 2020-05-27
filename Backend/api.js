@@ -133,7 +133,9 @@ var verifyClub = (playerId, clubId, next, res) => global.connection.query("SELEC
 
 // SEARCH for player:
 router.get("/api/search_player/", verifyToken, (req, res, next) => {
-	
+    
+    console.log("in search; search_terms: "+req.query.search_terms);
+
 	var my_query = () => { 
 	
 		// Get search terms
@@ -286,7 +288,7 @@ router.get("/api/search_club/", verifyToken, (req, res, next) => {
 router.get("/api/players/:id", verifyToken, (req, res, next) => {
 
     var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Players WHERE PlayerID = ?', 
-		[req.query.id], (error, results, field) => {
+		[req.params.id], (error, results, field) => {
         if (error) throw error
         res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
     });
@@ -308,9 +310,9 @@ router.get("/api/players/", verifyToken, (req, res, next) => {
     var my_query = () => {
 
 		var query_str = 'SELECT * FROM TransferMarkt_sp20.Players'
-		if (req.body.club_id !== undefined) query_str = 'SELECT * FROM TransferMarkt_sp20.Players WHERE ClubID = ?'
+		if (req.query.club_id !== undefined) query_str = 'SELECT * FROM TransferMarkt_sp20.Players WHERE ClubID = ?'
 
-		global.connection.query(query_str, [req.body.club_id],
+		global.connection.query(query_str, [req.query.club_id],
 			(error, results, field) => {
         	if (error) throw error
         	res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
@@ -330,9 +332,9 @@ router.get("/api/players/", verifyToken, (req, res, next) => {
 
 // GET Single Club:
 router.get("/api/clubs/:id", verifyToken, (req, res, next) => {
-
+    console.log("getting single club, req params id: "+req.params.id)
     var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Clubs WHERE ClubID = ?', 
-		[req.query.id], (error, results, field) => {
+		[req.params.id], (error, results, field) => {
         if (error) throw error
         // console.log("players got: "+ JSON.stringify(results));
         res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
@@ -372,7 +374,7 @@ router.get("/api/clubs/", verifyToken, (req, res, next) => {
 // GET Trade by ID:
 router.get("/api/trade/:id", verifyToken, (req, res, next) => {
     var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Requests WHERE PackageID = ?', 
-    [req.query.id], (error, results, field) => {
+    [req.params.id], (error, results, field) => {
        if (error) throw error;
        else res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
     });
@@ -625,7 +627,8 @@ router.post("/api/login/", (req, res) => {
                     jwt.sign({ user }, skey, {}, (err, token) => {
                         if (err && !debug) throw err;
                         res.send(JSON.stringify({ "status": 200, "error": null, 
-                        "response": token, "clubId": rows.ClubID }));
+                        "response": token, "clubId": rows.ClubID,
+                    "username": req.body.login_username }));
                     });
                 } else {
                     res.status(404).send("Wrong ID or Password");
