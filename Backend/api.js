@@ -286,7 +286,6 @@ router.get("/api/search_club/", verifyToken, (req, res, next) => {
 
 // GET single player:
 router.get("/api/players/:id", verifyToken, (req, res, next) => {
-
     var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Players WHERE PlayerID = ?', 
 		[req.params.id], (error, results, field) => {
         if (error) throw error
@@ -404,6 +403,42 @@ router.get("/api/trade/", verifyToken, (req, res, next) => {
         else {
             console.log(userData);
             my_query(userData);
+        }
+    });
+});
+
+// Fetch past 10 tranfers clubID
+router.get("/api/transfers/:id", verifyToken, (req, res, next) => {
+    var my_query = () => global.connection.query('SELECT t.PackageID, t.Date_Signed FROM TransferMarkt_sp20.Transfers t, TransferMarkt_sp20.Signatures s WHERE t.PackageID = s.PackageID AND s.ClubID = ? ORDER BY t.Date_Signed DESC LIMIT 10', 
+    [req.params.id], (error, results, field) => {
+       if (error) throw error;
+       else res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
+    });
+
+    // carry on with queries if token is verified
+    jwt.verify(req.token, skey, (err, userData) => {
+        if (err && !debug) res.status(404).send("Invalid JWT Token");
+        else {
+            console.log(userData);
+            my_query();
+        }
+    });
+});
+
+// Fetch past 10 tranfers
+router.get("/api/transfers/", verifyToken, (req, res, next) => {
+    var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Transfers ORDER BY Date_Signed DESC LIMIT 10', 
+    [], (error, results, field) => {
+       if (error) throw error;
+       else res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
+    });
+
+    // carry on with queries if token is verified
+    jwt.verify(req.token, skey, (err, userData) => {
+        if (err && !debug) res.status(404).send("Invalid JWT Token");
+        else {
+            console.log(userData);
+            my_query();
         }
     });
 });
