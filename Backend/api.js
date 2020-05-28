@@ -187,7 +187,7 @@ router.get("/api/search_player/", verifyToken, (req, res, next) => {
 						}
 					});
                 }
-                else
+                else if (index == array.length - 1)
                 {
                     res.send('{"status": 200, "error": null, "response":[]}');
                 }
@@ -195,7 +195,7 @@ router.get("/api/search_player/", verifyToken, (req, res, next) => {
 		});
 	};
 
-	if (typeof req.query.search_terms === undefined || req.query.search_terms.length === 0) {
+	if (!req.query.search_terms|| req.query.search_terms.length === 0) {
 		res.status(404).send("No search terms passed in query");
 	} else {
 
@@ -218,7 +218,7 @@ router.get("/api/search_club/", verifyToken, (req, res, next) => {
 		// Get search terms
 		const search_terms = req.query.search_terms;
 		const term_list = search_terms.toLowerCase().split(' ');
-		console.log(term_list);
+        console.log(term_list);
 		
 		// Keep track of search rankings and return response to user
 		var response = "";
@@ -262,14 +262,18 @@ router.get("/api/search_club/", verifyToken, (req, res, next) => {
 							const top_hits = results_list.slice(0,5);
 							const response = '{"status": 200,"error": null,"response":[' + top_hits + ']}';
         					res.send(response);
-						}
+                        }
 					});
-				}
+                }
+                else if (index == array.length - 1)
+                {
+                    res.send('{"status": 200, "error": null, "response":[]}');
+                }
 			});
 		});
 	};
 
-	if (typeof req.query.search_terms === undefined || req.query.search_terms.length === 0) {
+	if (!req.query.search_terms || req.query.search_terms.length === 0) {
 		res.status(404).send("No search terms passed in query");
 	} else {
 
