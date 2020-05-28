@@ -2,10 +2,6 @@
 # coding: utf-8
 
 # # CS60 Database Schema Construction
-
-# In[1]:
-
-
 import pandas as pd
 import numpy as np
 import sqlalchemy as db
@@ -15,50 +11,24 @@ import bcrypt
 
 
 # ## Read in Data
-
-# In[2]:
-
-
 players = pd.read_csv("./players_20.csv", usecols=['short_name', 'long_name', 'age', 'height_cm', 
                                                    'weight_kg', 'club', 'player_positions', 'overall'])
-
-
-# In[3]:
-
-
-players.head()
-
 
 # ## Manipulate Data to reflect our schema
 
 # #### Add Data Categories to Players to match our Schema and Select only players from La Liga Series A
 
-# In[4]:
-
-
 players['first_name'] = players['long_name'].str.split().str[0]
 players['last_name'] = players['long_name'].str.split().str[1:]
 players['last_name'] = players['last_name'].apply(" ".join)
-
-
-# In[5]:
-
 
 # Decode any strange characters:
 players['first_name'] = players['first_name'].apply(unidecode)
 players['last_name'] = players['last_name'].apply(unidecode)
 
-
-# In[6]:
-
-
 # Generate Player salaries by using overall player score from FIFA:
 players['overall'] /= 10 # divide by 10 and consider player ranking a log scale to generate salaries
 players['salary'] = (2.9**players['overall'] * 500).astype(int)
-
-
-# In[7]:
-
 
 # Select only players in the La Liga Clubs selected for our database
 db_clubs = ['FC Barcelona', 'Atlético Madrid', 'Real Betis', 
@@ -72,10 +42,6 @@ db_clubs = ['FC Barcelona', 'Atlético Madrid', 'Real Betis',
 players = players[players['club'].isin(db_clubs)]
 print("Clubs remaining:", players['club'].nunique())
 
-
-# In[8]:
-
-
 # Create AUTO_INCREMENT id:
 players.reset_index(inplace=True, drop=True)
 players.reset_index(level=0, inplace=True)
@@ -84,16 +50,9 @@ players['index'] += 1
 
 # #### Generate Club Table, and dictionary to map Club Names to IDs within the players table
 
-# In[9]:
-
-
 # Convert Club Names into ClubIDs
 club_dict = {k: v + 1 for v, k in enumerate(db_clubs)} # converts club name to clubID
 players['club'] = players['club'].apply(lambda club: club_dict[club]) # convert within dataframe
-
-
-# In[10]:
-
 
 # create a club dataframe to go along with the players dataframe:
 clubs = pd.DataFrame(db_clubs, columns=['ClubName'])
@@ -105,11 +64,6 @@ clubs = clubs.rename(columns={"index": "ClubID"})
 clubs['ClubID'] += 1
 
 clubs.head()
-
-
-# #### Generate position dataframe & position to ID dict
-
-# In[11]:
 
 
 # Generate position dataframe & id dictionary
@@ -131,9 +85,6 @@ positions.head()
 
 # #### Break PlayerPositions column into dataframe PlayerPositions (Normalize the DB)
 
-# In[12]:
-
-
 # Extract Data
 player_positions_list = [] # list of dictionaries representing each player position relationship
 for _, player in players.iterrows():
@@ -151,35 +102,14 @@ player_positions.head()
 
 # #### Players table now complete - remove unnessesary columns to finalize
 
-# In[13]:
-
-
 # Remove unnessesary data
 players = players[['index', 'first_name', 'last_name', 'age', 'club', 'salary']]
 players = players.rename(columns={"index": "PlayerID", "first_name": "FirstName", "last_name": "LastName",
                                   "club": "ClubID","salary": "Salary", "age": "Age"})
-players.head()
-
-
-# In[14]:
-
-
-sum(players[players['ClubID'] == 2]['Salary']) # Get a sense for how high the salary cap should be
-
-
-# #### Create Clubs and Managers DF
-
-# In[15]:
-
 
 # Create Clubs DF
 leagues = pd.DataFrame([{'LeagueID': 1, 'LeagueName': 'La Liga Series A', 
                          'SalaryCap': 800000000, 'MinPlayersPerTeam': 20}])
-leagues.head()
-
-
-# In[16]:
-
 
 # Create Managers DF
 usernames = ['chloeozzy','muttiesreeping','poppyovercast','refluxanthology','ludibriousjump',
@@ -214,11 +144,6 @@ for i in range(len(usernames)):
     
 # Create the Manager Table:
 managers = pd.DataFrame(data=managers_list)
-managers.head()
-
-
-# In[17]:
-
 
 # Save Manager Info for Reference:
 managers.to_csv("manager_creds.csv", index=False)
@@ -226,48 +151,18 @@ managers = managers.drop("Password", axis=1)
 
 
 # ## Populate the SQL Database
+# db = db.create_engine('mysql+mysqldb://TransferMarkt_sp20:V2LK^ep$@sunapee.cs.dartmouth.edu:3306/TransferMarkt_sp20', pool_recycle=3600)
 
-# In[18]:
-
-
-sunapee = db.create_engine('mysql+mysqldb://TransferMarkt_sp20:V2LK^ep$@sunapee.cs.dartmouth.edu:3306/TransferMarkt_sp20', pool_recycle=3600)
-
-
-# #### Insert Tables:
-
-# In[19]:
+# Uncomment the following to use AWS instead of sunapee:
+db = db.create_engine('mysql+mysqldb://TransferMarkt:CQ97PTVOiPQWwlhdtLHo@transfermarkt.cdcl1ioqlhoa.us-east-1.rds.amazonaws.com:3306/TransferMarkt_sp20', pool_recycle=3600)
 
 
-leagues.to_sql(con=sunapee, name='Leagues', if_exists='append', index=False)
+# #### Insert Tables (inserted in order to satisfy FK constraints)
 
-
-# In[20]:
-
-
-# Insert clubs before players to satisfy FK constraints
-clubs.to_sql(con=sunapee, name='Clubs', if_exists='append', index=False)
-
-
-# In[21]:
-
-
-players.to_sql(con=sunapee, name='Players', if_exists='append', index=False)
-
-
-# In[22]:
-
-
-positions.to_sql(con=sunapee, name='Positions', if_exists='append', index=False)
-
-
-# In[23]:
-
-
-player_positions.to_sql(con=sunapee, name='PlayerPositions', if_exists='append', index=False)
-
-
-# In[24]:
-
-
-managers.to_sql(con=sunapee, name='Managers', if_exists='append', index=False)
+leagues.to_sql(con=db, name='Leagues', if_exists='append', index=False)
+clubs.to_sql(con=db, name='Clubs', if_exists='append', index=False)
+players.to_sql(con=db, name='Players', if_exists='append', index=False)
+positions.to_sql(con=db, name='Positions', if_exists='append', index=False)
+player_positions.to_sql(con=db, name='PlayerPositions', if_exists='append', index=False)
+managers.to_sql(con=db, name='Managers', if_exists='append', index=False)
 
