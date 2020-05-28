@@ -396,7 +396,7 @@ router.get("/api/trade/:id", verifyToken, (req, res, next) => {
 // Fetch all packages addressed to the user's clubID that is not rejected and requires signatures
 router.get("/api/trade/", verifyToken, (req, res, next) => {
   
-    var my_query = (userData) => global.connection.query('SELECT p.PackageID, p.Status, p.Date FROM TransferMarkt_sp20.Packages p, TransferMarkt_sp20.Signatures s WHERE p.PackageId = s.PackageId AND p.Status = 0 AND s.ClubID = ? AND s.Status = ?', 
+    var my_query = (userData) => global.connection.query('SELECT p.PackageID, p.Status, p.Date FROM TransferMarkt_sp20.Packages p, TransferMarkt_sp20.Signatures s WHERE p.PackageId = s.PackageId AND p.Status = 1 AND s.ClubID = ? AND s.Status = ?', 
     [userData.user.clubId, -1], (error, results, field) => {
        if (error) throw error;
        else res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
@@ -577,7 +577,9 @@ router.post("/api/trade/", verifyToken, (req, res) => {
 
     var create_requests = () => req.body.requests.forEach((request) =>
     {
+        console.log("in one request: "+JSON.stringify(createRequest(request,1)))
         global.connection.query('INSERT INTO TransferMarkt_sp20.Requests VALUES(?)', [Object.values(createRequest(request, packageID))], (error, results, field) => {
+            console.log("insert results: "+JSON.stringify(results))
             if (error) throw error;
             else if (!teams.has(request.To))
             {
