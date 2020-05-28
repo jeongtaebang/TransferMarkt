@@ -10,7 +10,9 @@ The database is permissioned to push/pull to the backend or frontend repos, but 
 ### Running the Backend:
 Since another user might already be running the DB, make sure to kill all node instances before relaunching the db:
 1. `sudo fuser -k -n tcp 3000`
-2. `node api.js`
+2. Run api.js:
+ - `node api.js` if you plan to keep the connection the the server open and want to test actively
+- `nohup node api.js &` if you want the backend to remain up even after your connection to the server drops.
 
 Same process applies for the frontend if you want to run the frontend on the server as well.
 
