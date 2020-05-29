@@ -339,6 +339,76 @@ router.get("/api/players/", verifyToken, (req, res, next) => {
     });
 });
 
+// Get player position
+router.get("/api/player_positions/:id", verifyToken, (req, res, next) => {
+    // check if ID is int
+    if (isNaN(req.params.id))
+    {
+        res.status(404).send("Player ID needs to be an INT.");
+        return;
+    }
+
+    var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.PlayerPositions WHERE PlayerID = ?', 
+		[req.params.id], (error, results, field) => {
+        if (error) throw error
+        res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
+    });
+
+    // carry on with queries if token is verified
+    jwt.verify(req.token, skey, (err, userData) => {
+        if (err && !debug) {res.status(404).send("Invalid JWT Token")}
+        else {
+            console.log(userData);
+            my_query();
+        }
+    });
+});
+
+// Get position info for a position ID
+// GET single player:
+router.get("/api/positions/:id", verifyToken, (req, res, next) => {
+    if (isNaN(req.params.id))
+    {
+        res.status(404).send("Player ID needs to be an INT.");
+        return;
+    }
+    
+    var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Positions WHERE PositionID = ?', 
+		[req.params.id], (error, results, field) => {
+        if (error) throw error
+        res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
+    });
+
+    // carry on with queries if token is verified
+    jwt.verify(req.token, skey, (err, userData) => {
+        if (err && !debug) {res.status(404).send("Invalid JWT Token")}
+        else {
+            console.log(userData);
+            my_query();
+        }
+    });
+});
+
+// Get general position info (position ID, position name)
+// GET single player:
+router.get("/api/positions/", verifyToken, (req, res, next) => {
+    var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Positions', 
+		[], (error, results, field) => {
+        if (error) throw error
+        res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
+    });
+
+    // carry on with queries if token is verified
+    jwt.verify(req.token, skey, (err, userData) => {
+        if (err && !debug) {res.status(404).send("Invalid JWT Token")}
+        else {
+            console.log(userData);
+            my_query();
+        }
+    });
+});
+
+
 
 // GET Single Club:
 router.get("/api/clubs/:id", verifyToken, (req, res, next) => {
