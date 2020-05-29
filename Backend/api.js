@@ -60,7 +60,7 @@ const verifyToken = (req, res, next) => {
         return;
     }
 
-	const tokHeader = req.headers['authorization'];
+const tokHeader = req.headers['authorization'];
     if (typeof tokHeader !== 'undefined') {
         const bearer = tokHeader.split(' ');
         const token = bearer[1];
@@ -675,7 +675,7 @@ router.get("/api/transfers/:id", verifyToken, (req, res, next) => {
         return;
     }
 
-    var my_query = () => global.connection.query('SELECT t.PackageID, t.Date_Signed FROM TransferMarkt_sp20.Transfers t, TransferMarkt_sp20.Signatures s WHERE t.PackageID = s.PackageID AND s.ClubID = ? ORDER BY t.Date_Signed DESC LIMIT 10', 
+    var my_query = () => global.connection.query('SELECT t.PackageID, t.DateSigned FROM TransferMarkt_sp20.Transfers t, TransferMarkt_sp20.Signatures s WHERE t.PackageID = s.PackageID AND s.ClubID = ? ORDER BY t.DateSigned DESC LIMIT 10', 
     [req.params.id], (error, results, field) => {
        if (error) res.status(404).send(error);
        else res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
