@@ -564,7 +564,37 @@ router.put("/api/players/:id", verifyToken, (req, res) => {
 
     var query_str = `UPDATE TransferMarkt_sp20.Players SET ? WHERE playerId = ?`
 
-    var update_player = (clubId) => global.connection.query(query_str, [req.body, Number(req.params.id)], (error, results, field) => {
+    var response = {"UpdatePlayer" : false, "UpdatePosition" : false};
+
+    var clear_and_update = (positions, playerId) =>
+        global.connection.query('DELETE FROM TransferMarkt_sp20.PlayerPositions WHERE PlayerID = ?', [playerId], (error, results, field) => {
+            if (error) throw error;
+            update_position(positions, 0, playerId);
+        });
+
+    var update_position = (positions, index, playerId) => {
+        // clear player's positions before updating
+        if (index == positions.length)
+            global.connection.commit((error) => {
+                if (error) throw error;
+                response.UpdatePosition = true;
+                res.send(JSON.stringify({ "status": 200, "error": null, "response": response}));
+            });
+        else
+            global.connection.query('INSERT INTO TransferMarkt_sp20.PlayerPositions VALUES(?)', [[playerId, positions[index]]], (error, results, field) => {
+                if (error)
+                    global.connection.rollback(()=>
+                    {
+                        throw error;
+                    });
+                else 
+                {
+                    update_position(positions, index + 1, playerId);
+                }
+            });
+    };
+
+    var update_player = (clubId) => global.connection.query(query_str, [req.body.Player, Number(req.params.id)], (error, results, field) => {
         if (error)
             global.connection.rollback(() =>
             { 
@@ -574,12 +604,21 @@ router.put("/api/players/:id", verifyToken, (req, res) => {
             checkClubValidity(clubId, (isValid) => {
                 if (isValid)
                 {
-                    global.connection.commit((error) =>
-                    {
-                        if (error)
-                            throw error;
-                        res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
-                    });
+                    response.UpdatePlayer = true;
+                    if ("Positions" in req.body)
+                        if (Array.isArray(req.body.Positions))
+                            clear_and_update(req.body.Positions, req.params.id)
+                        else
+                            global.connection.rollback((error)=>
+                            {
+                                if (error) throw error;
+                                res.status(404).send("Positions value needs to be an array type.");
+                            });
+                    else
+                        global.connection.commit((error) => {
+                            if (error) throw error;
+                            res.send(JSON.stringify({ "status": 200, "error": null, "response": response}));
+                        });
                 }
                 else
                 {
