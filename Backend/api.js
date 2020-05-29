@@ -935,19 +935,22 @@ router.post("/api/trade/", verifyToken, (req, res) => {
         global.connection.query('INSERT INTO TransferMarkt_sp20.Requests VALUES(?)', [Object.values(createRequest(request, packageID))], (error, results, field) => {
             console.log("insert results: " + JSON.stringify(results));
             if (error) res.status(404).send(error);
-            else if (!teams.has(request.To))
+            else
             {
-                teams.add(request.To);
-                global.connection.query('INSERT INTO TransferMarkt_sp20.Signatures VALUES(?)', [Object.values(createSignature(request.To, packageID))], (error, results, field) => {
-                    if (error) res.status(404).send(error);
-                });
-            }
-            else if (!teams.has(request.From))
-            {
-                teams.add(request.From);
-                global.connection.query('INSERT INTO TransferMarkt_sp20.Signatures VALUES(?)', [Object.values(createSignature(request.From, packageID))], (error, results, field) => {
-                    if (error) res.status(404).send(error);
-                });
+                if(!teams.has(request.To))
+                {
+                    teams.add(request.To);
+                    global.connection.query('INSERT INTO TransferMarkt_sp20.Signatures VALUES(?)', [Object.values(createSignature(request.To, packageID))], (error, results, field) => {
+                        if (error) res.status(404).send(error);
+                    });
+                }
+                if (!teams.has(request.From))
+                {
+                    teams.add(request.From);
+                    global.connection.query('INSERT INTO TransferMarkt_sp20.Signatures VALUES(?)', [Object.values(createSignature(request.From, packageID))], (error, results, field) => {
+                        if (error) res.status(404).send(error);
+                    });
+                }
             }
         });
 
