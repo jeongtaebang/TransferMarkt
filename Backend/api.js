@@ -124,7 +124,7 @@ var execute_trade = (packageID, success) => {
 	var get_league_info = (result) => global.connection.query("SELECT SalaryCap FROM TransferMarkt_sp20.Leagues WHERE LeagueID = 1",
 	(error, results, fields) => {
 		if (error) res.status(404).send(error);
-		result(results[0].SalaryCap);
+		else result(results[0].SalaryCap);
 	});
 	
 
@@ -137,8 +137,11 @@ var execute_trade = (packageID, success) => {
 		global.connection.query("SELECT `PlayerID`, `To`, `From`, `NewSalary` FROM TransferMarkt_sp20.Requests WHERE PackageID = ?",
 		[packageID], (error, results, fields) => {
 
-			if (error) res.status(404).send(error);
-			
+            if (error)
+            {
+                res.status(404).send(error);
+                return;
+            }
 			clubs_involved = new Set();
 			results.forEach((request, index, array) => {
 
@@ -150,10 +153,11 @@ var execute_trade = (packageID, success) => {
 				[request.To, request.NewSalary, request.PlayerID] , (error, results, fields) => {
 					if (error) {
 						global.connection.rollback(() => {
-							res.status(404).send(error);
+                            res.status(404).send(error);
+                            return;
 						});
 					}
-					if (index === array.length - 1) {
+					else if (index === array.length - 1) {
 						result(clubs_involved);
                     }
 				});
@@ -172,10 +176,11 @@ var execute_trade = (packageID, success) => {
 			[clubID], (error, results, fields) => {
 				if (error) {
 					connection.rollback(() => {
-						res.status(404).send(error);
+                        console.log(`Package Rejected: ${String(error)}`);
+						passed(false);
 					});
 				}
-				if (results[0].TeamSalary > salary_cap) {
+				else if (results[0].TeamSalary > salary_cap) {
 					connection.rollback(() => {
                         console.log(`Package Rejected: Club ${clubID}'s salary, ${results[0].TeamSalary}, is greater than salary cap ${salary_cap}`);
 						passed(false);
@@ -194,7 +199,11 @@ var execute_trade = (packageID, success) => {
 
 		// Begin transaction
 		global.connection.beginTransaction((error) => {
-			if (error) res.status(404).send(error);
+            if (error)
+            {
+                res.status(404).send(error);
+                return;
+            }
 
 			// Update player clubs and salaries affected by trade
 			updates_players(clubs_involved => {
@@ -232,7 +241,11 @@ var execute_trade = (packageID, success) => {
 
 // Match Player Club Id with User's Club Id
 var verifyClub = (playerId, clubId, next, param, res) => global.connection.query("SELECT clubId FROM TransferMarkt_sp20.Players WHERE playerId = ?", [playerId], (error, results, fields) => {
-    if (error) res.status(404).send(error);
+    if (error)
+    {  
+        res.status(404).send(error);
+        return;
+    }
     console.log(results);
     
     if (results.length === 0 || typeof results === undefined) {
@@ -245,7 +258,11 @@ var verifyClub = (playerId, clubId, next, param, res) => global.connection.query
 });
 
 var checkClubValidity = (clubID, next) => global.connection.query("SELECT SUM(p.Salary) AS TotalSalary, l.SalaryCap As SalaryCap FROM TransferMarkt_sp20.Players p, TransferMarkt_sp20.Leagues l WHERE p.ClubID = ? LIMIT 1", [clubID], (error, results, fields) => {
-    if (error) res.status(404).send(error);
+    if (error) 
+    {
+        res.status(404).send(error);
+        return;
+    }
     console.log(results);
     console.log(clubID);
     if (results.length === 0 || typeof results === undefined) {
@@ -278,7 +295,11 @@ router.get("/api/search_player/", verifyToken, (req, res, next) => {
 			global.connection.query("SELECT * FROM TransferMarkt_sp20.Players WHERE LOWER(FirstName) LIKE ? OR LOWER(LastName) LIKE ?",
 				[term, term] , (error, results, fields) => {
 
-				if (error) res.status(404).send(error);
+                if (error) 
+                {
+                    res.status(404).send(error);
+                    return;
+                }
 				if (results.length) {
 					// Add returned players to search_rankings dictionary
 					results.forEach((player, index1, array1) => {
@@ -356,7 +377,11 @@ router.get("/api/search_club/", verifyToken, (req, res, next) => {
 			global.connection.query("SELECT * FROM TransferMarkt_sp20.Clubs WHERE LOWER(ClubName) LIKE ?",
 				[term] , (error, results, fields) => {
 
-				if (error) res.status(404).send(error);
+                if (error)
+                {
+                    res.status(404).send(error);
+                    return;
+                }
 				if (results.length) {
 					// Add returned clubs to search_rankings dictionary
 					results.forEach((club, index1, array1) => {
@@ -425,7 +450,11 @@ router.get("/api/players/:id", verifyToken, (req, res, next) => {
 
     var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Players WHERE PlayerID = ?', 
 		[req.params.id], (error, results, field) => {
-        if (error) res.status(404).send(error);
+        if (error) 
+        {
+            res.status(404).send(error);
+            return;
+        }
         res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
     });
 
@@ -450,7 +479,11 @@ router.get("/api/players/", verifyToken, (req, res, next) => {
 
 		global.connection.query(query_str, [req.query.club_id],
 			(error, results, field) => {
-        	if (error) res.status(404).send(error);
+            if (error)
+            {
+                res.status(404).send(error);
+                return;
+            }
         	res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
     	});
 	};
@@ -476,7 +509,11 @@ router.get("/api/player_positions/:id", verifyToken, (req, res, next) => {
 
     var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.PlayerPositions WHERE PlayerID = ?', 
 		[req.params.id], (error, results, field) => {
-        if (error) res.status(404).send(error);
+        if (error) 
+        {
+            res.status(404).send(error);
+            return;
+        }
         res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
     });
 
@@ -501,7 +538,12 @@ router.get("/api/positions/:id", verifyToken, (req, res, next) => {
 
     var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Positions WHERE PositionID = ?', 
 		[req.params.id], (error, results, field) => {
-        if (error) res.status(404).send(error);
+        if (error)
+        {
+            res.status(404).send(error);
+            return;
+        } 
+            
         res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
     });
 
@@ -521,7 +563,7 @@ router.get("/api/positions/", verifyToken, (req, res, next) => {
     var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Positions', 
 		[], (error, results, field) => {
         if (error) res.status(404).send(error);
-        res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
+        else res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
     });
 
     // carry on with queries if token is verified
@@ -549,7 +591,7 @@ router.get("/api/clubs/:id", verifyToken, (req, res, next) => {
 		[req.params.id], (error, results, field) => {
         if (error) res.status(404).send(error);
         // console.log("players got: "+ JSON.stringify(results));
-        res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
+        else res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
     });
 
     // carry on with queries if token is verified
@@ -569,7 +611,7 @@ router.get("/api/clubs/", verifyToken, (req, res, next) => {
     var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Clubs', 
 		(error, results, field) => {
         if (error) res.status(404).send(error);
-        res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
+        else res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
     });
 
     // carry on with queries if token is verified
@@ -683,7 +725,7 @@ router.put("/api/players/:id", verifyToken, (req, res) => {
     var clear_and_update = (positions, playerId) =>
         global.connection.query('DELETE FROM TransferMarkt_sp20.PlayerPositions WHERE PlayerID = ?', [playerId], (error, results, field) => {
             if (error) res.status(404).send(error);
-            update_position(positions, 0, playerId);
+            else update_position(positions, 0, playerId);
         });
 
     var update_position = (positions, index, playerId) => {
@@ -691,8 +733,11 @@ router.put("/api/players/:id", verifyToken, (req, res) => {
         if (index == positions.length)
             global.connection.commit((error) => {
                 if (error) res.status(404).send(error);
-                response.UpdatePosition = true;
-                res.send(JSON.stringify({ "status": 200, "error": null, "response": response}));
+                else
+                {
+                    response.UpdatePosition = true;
+                    res.send(JSON.stringify({ "status": 200, "error": null, "response": response}));
+                }
             });
         else
             global.connection.query('INSERT INTO TransferMarkt_sp20.PlayerPositions VALUES(?)', [[playerId, positions[index]]], (error, results, field) => {
@@ -726,12 +771,12 @@ router.put("/api/players/:id", verifyToken, (req, res) => {
                             global.connection.rollback((error)=>
                             {
                                 if (error) res.status(404).send(error);
-                                res.status(404).send("Positions value needs to be an array type.");
+                                else res.status(404).send("Positions value needs to be an array type.");
                             });
                     else
                         global.connection.commit((error) => {
                             if (error) res.status(404).send(error);
-                            res.send(JSON.stringify({ "status": 200, "error": null, "response": response}));
+                            else res.send(JSON.stringify({ "status": 200, "error": null, "response": response}));
                         });
                 }
                 else
@@ -793,7 +838,7 @@ router.put("/api/sign/:id", verifyToken, (req, res) => {
                             // Invalidate the Package:
                             global.connection.query('UPDATE TransferMarkt_sp20.Packages SET Status = Status * ? WHERE PackageId = ?', [0, req.params.id], (error, results, field) => {
                                 if (error) res.status(404).send(error);
-                                res.send(JSON.stringify({"status" : 200, "error" : null, "response" : "Trade rejected"}));
+                                else res.send(JSON.stringify({"status" : 200, "error" : null, "response" : "Trade rejected"}));
                             });
                         }
                     }); 
@@ -854,7 +899,10 @@ router.post("/api/players/", verifyToken, (req, res) => {
                     global.connection.commit((error) =>
                     {
                         if (error)
+                        {
                             res.status(404).send(error);
+                            return;
+                        }
                         response.CreatePlayer = true;            
                         update_position(req.body.Positions, 0, results.insertId);
                         res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
@@ -941,14 +989,22 @@ router.post("/api/trade/", verifyToken, (req, res) => {
                 {
                     teams.add(request.To);
                     global.connection.query('INSERT INTO TransferMarkt_sp20.Signatures VALUES(?)', [Object.values(createSignature(request.To, packageID))], (error, results, field) => {
-                        if (error) res.status(404).send(error);
+                        if (error)
+                        {
+                            res.status(404).send(error);
+                            return;
+                        }
                     });
                 }
                 if (!teams.has(request.From))
                 {
                     teams.add(request.From);
                     global.connection.query('INSERT INTO TransferMarkt_sp20.Signatures VALUES(?)', [Object.values(createSignature(request.From, packageID))], (error, results, field) => {
-                        if (error) res.status(404).send(error);
+                        if (error)
+                        {
+                            res.status(404).send(error);
+                            return;
+                        }
                     });
                 }
             }
@@ -988,7 +1044,7 @@ router.delete("/api/players/:id", verifyToken, (req, res) => {
     // callback to delete if admin
     admin_query = () => global.connection.query('DELETE FROM TransferMarkt_sp20.Players WHERE playerId = ?', [Number(req.params.id)], (error, results, field) => {
         if (error) res.status(404).send(error);
-        res.send(JSON.stringify({"status" : 200, "error" : null, "response" : results}));
+        else res.send(JSON.stringify({"status" : 200, "error" : null, "response" : results}));
     });
     
     jwt.verify(req.token, skey, (err, userData) => {
@@ -1013,7 +1069,11 @@ router.post("/api/login/", (req, res) => {
     };
 
     global.connection.query("SELECT SaltedPassword, ClubID, AdminPrivilege FROM TransferMarkt_sp20.Managers WHERE Username = ?", [user.username], (error, results, fields) => {
-        if (error) res.status(404).send(error);
+        if (error)
+        {
+            res.status(404).send(error);
+            return;
+        }
         console.log(results);
 
         if (results.length === 0 || typeof results === undefined) {
@@ -1027,7 +1087,10 @@ router.post("/api/login/", (req, res) => {
             // });
 
             bcrypt.compare(user.pw, rows.SaltedPassword, (error, result) => {
-                if (error) res.status(404).send(error);
+                if (error) {
+                    res.status(404).send(error);
+                    return;
+                }
                 if (result) {
                     user.privilege = rows.AdminPrivilege;
                     user.clubId = rows.ClubID;
