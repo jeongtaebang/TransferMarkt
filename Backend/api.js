@@ -8,7 +8,7 @@ var config = require('./config-aws');
 let jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { v1: uuidv1 } = require('uuid');
-var cors = require('cors')
+var cors = require('cors');
 
 
 // Debug Mode?
@@ -38,7 +38,7 @@ app.use((req, res, next) => {
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json());
 
-app.use(cors())
+app.use(cors());
 
 // initialize router
 var router = express.Router();
@@ -61,7 +61,7 @@ const verifyToken = (req, res, next) => {
         next();
         return;
     }
-    const tokHeader = req.headers['authorization'];
+    const tokHeader = req.headers.authorization;
     if (typeof tokHeader !== undefined) {
         const bearer = tokHeader.split(' ');
         const token = bearer[1];
@@ -70,7 +70,7 @@ const verifyToken = (req, res, next) => {
     } else {
         res.status(404).send("Permission denied");
     }
-}
+};
 
 var getDate = () => {
     return new Date().toISOString().slice(0, 19).replace('T', ' ');
@@ -118,96 +118,117 @@ var createSignature = (clubID, packageID) => {
 };
 
 
-var updatePlayers = (packageID) => {
+// returns true if successful
+var execute_trade = (packageID, success) => {
 	
 	
-	var get_league_info = (result) => global.connection.query("SELECT MinPlayersPerTeam, SalaryCap FROM TransferMarkt_sp20.Leagues WHERE LeagueID = 1",
-		(error, results, fields) => {
+	var get_league_info = (result) => global.connection.query("SELECT SalaryCap FROM TransferMarkt_sp20.Leagues WHERE LeagueID = 1",
+	(error, results, fields) => {
+		if (error) throw error;
+		result(results[0].SalaryCap);
+	});
+	
+
+	// Updates players involved in a trade to reflect new club and salary. Returns all clubs involved in the trade
+	// Expects to be called from within a transaction.
+	updates_players = (result) => {
+
+        console.log(packageID);
+
+		global.connection.query("SELECT `PlayerID`, `To`, `From`, `NewSalary` FROM TransferMarkt_sp20.Requests WHERE PackageID = ?",
+		[packageID], (error, results, fields) => {
+
+			if (error) throw error;
+			
+			clubs_involved = new Set();
+			results.forEach((request, index, array) => {
+
+				// Add teams that need to be checked
+				clubs_involved.add(request.To); // won't add duplicates by default
+				clubs_involved.add(request.From);
+
+				global.connection.query("UPDATE TransferMarkt_sp20.Players SET ClubID = ?, Salary = ? WHERE PlayerID = ?",
+				[request.To, request.NewSalary, request.PlayerID] , (error, results, fields) => {
+					if (error) {
+						global.connection.rollback(() => {
+							throw error;
+						});
+					}
+					if (index === array.length - 1) {
+						result(clubs_involved);
+                    }
+				});
+			});
+		});
+	};
+	
+	// Expects to be called from within a transaction.
+	// Checks that all clubs are below the salary cap. Returns true if so, false if not.
+	var check_constraints = (clubs_involved, salary_cap, passed) => {
+
+        let clubs_array = Array.from(clubs_involved);
+
+		clubs_array.forEach((clubID, index, array) => {
+			global.connection.query("SELECT SUM(Salary) AS TeamSalary FROM Players WHERE ClubID = ? LIMIT 1", 
+			[clubID], (error, results, fields) => {
+				if (error) {
+					connection.rollback(() => {
+						throw error;
+					});
+				}
+				if (results[0].TeamSalary > salary_cap) {
+					connection.rollback(() => {
+                        console.log(`Package Rejected: Club ${clubID}'s salary, ${results[0].TeamSalary}, is greater than salary cap ${salary_cap}`);
+						passed(false);
+					});
+                }
+    			else if (index === array.length) {
+                    console.log(`Package Accepted: All involved clubs meet salary cap constraint`);
+                    passed(true);
+                }
+			});
+		});
+	};
+
+	// Get Salary Cap
+	get_league_info((salary_cap) => {
+
+		// Begin transaction
+		global.connection.beginTransaction((error) => {
 			if (error) throw error;
 
-			result(results[0].MinPlayersPerTeam, results[0].SalaryCap);
-	});
-	
-
-	// Returns players that need to be updated and clubs involved in trade
-	var get_updates = (result) => {
-		global.connection.query("SELECT PlayerID, To, From, NewSalary FROM TransferMarkt_sp20.Requests WHERE PackageID = ?",
-			[packageID], (error, results, fields) => {
-
-				if (error) throw error;
+			// Update player clubs and salaries affected by trade
+			updates_players(clubs_involved => {
 				
-				clubs_involved = new Set();
-				player_updates = []
-				results.forEach((result, index, array) => {
+				// Ensure that no clubs are over the salary cap
+				check_constraints(clubs_involved, salary_cap, passed => {
 
-					var player_update = [] // contains player ID, destination club, and new salary
-					player_update.push(result.PlayerID, result.To, result.NewSalary);
-					player_updates.push(player_update);
-
-					// Add teams that need to be checked
-					teams.add(result.To); // won't add duplicates by default
-					teams.add(result.From);
-
-					if (index === array.length){
-						result(player_updates, clubs_involved);
-					}
-
-				});
-			});
-	}
-
-
-	get_league_info((min_players, salary_cap) => {
-		get_updates((player_updates, clubs_involved) => {
-
-			// Transaction structure adapted from https://www.codediesel.com/nodejs/mysql-transactions-in-nodejs/ 
-			/* Begin transaction */
-			global.connection.beginTransaction((err) {
-				
-				if (error) throw error;
-
-				player_updates.forEach((player) => {
-
-					global.connection.query("UPDATE TransferMarkt_sp20.Players SET ClubID = ?, Salary = ? WHERE PlayerID = ?",
-						player, (error, results, fields) => {
-							if (error) {
-								connection.rollback({
-									throw error;
-								});
-							}
-							// Check if update is valid (team remains above min players and below salary cap)
-							clubs_involved.forEach((club) => {
-								global.connection.query("SELECT COUNT(PlayerID) AS NumPlayers, SUM(Salary) AS TeamSalaryPayout FROM Players WHERE ClubID = ?", 
-									club, (error, results, fields) => {
-										if (error) {
-											connection.rollback({
-												throw error;
-											});
-										}
-										if (results.NumPlayers < min_players || results.TeamSalaryPayout > salary_cap) {
-											connection.rollback({
-												// send response indicating failure of the trade
-											});
-										}
-									});
-							});
+					if (!passed) {
+						connection.rollback(() => {
+							// Return that trade package has failed:
+                            success(false);
 						});
+					}
+					else {
+
+						console.log("Made it to commit stage");
+
+						/* End transaction */			
+						global.connection.commit((err) => {
+				        	if (err) { 
+				        	  connection.rollback(() => {
+				        	    throw err;
+				        	  });
+				        	}
+				    		console.log('Transaction Complete. Trade Executed.');
+							success(true);
+					    });
+					}
 				});
-				
-				global.connection.commit((err) {
-			        if (err) { 
-			          connection.rollback( {
-			            throw err;
-			          });
-			        }
-			    	console.log('Transaction Complete.');
-			    });
 			});
-			/* End transaction */			
-		}):
+		});
 	});
-	
-}
+};
 
 
 // Match Player Club Id with User's Club Id
@@ -252,7 +273,7 @@ router.get("/api/search_player/", verifyToken, (req, res, next) => {
 					// Add returned players to search_rankings dictionary
 					results.forEach((player, index1, array1) => {
 
-						const player_string = JSON.stringify(player)
+						const player_string = JSON.stringify(player);
 						if (!(player_string in search_rankings)) search_rankings[player_string] = 1;
 						else search_rankings[player_string] += 1;
 
@@ -295,7 +316,7 @@ router.get("/api/search_player/", verifyToken, (req, res, next) => {
 	} else {
 
 		jwt.verify(req.token, skey, (err, userData) => {
-    	    if (err && !debug) {res.status(404).send("Invalid JWT Token")}
+    	    if (err && !debug) res.status(404).send("Invalid JWT Token");
     	    else {
     	        console.log(userData);
     	        my_query();
@@ -330,7 +351,7 @@ router.get("/api/search_club/", verifyToken, (req, res, next) => {
 					// Add returned clubs to search_rankings dictionary
 					results.forEach((club, index1, array1) => {
 
-						const club_string = JSON.stringify(club)
+						const club_string = JSON.stringify(club);
 						if (!(club_string in search_rankings)) search_rankings[club_string] = 1;
 						else search_rankings[club_string] += 1;
 
@@ -373,7 +394,7 @@ router.get("/api/search_club/", verifyToken, (req, res, next) => {
 	} else {
 
 		jwt.verify(req.token, skey, (err, userData) => {
-    	    if (err && !debug) {res.status(404).send("Invalid JWT Token")}
+    	    if (err && !debug) {res.status(404).send("Invalid JWT Token");}
     	    else {
     	        console.log(userData);
     	        my_query();
@@ -387,13 +408,13 @@ router.get("/api/search_club/", verifyToken, (req, res, next) => {
 router.get("/api/players/:id", verifyToken, (req, res, next) => {
     var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Players WHERE PlayerID = ?', 
 		[req.params.id], (error, results, field) => {
-        if (error) throw error
+        if (error) throw error;
         res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
     });
 
     // carry on with queries if token is verified
     jwt.verify(req.token, skey, (err, userData) => {
-        if (err && !debug) {res.status(404).send("Invalid JWT Token")}
+        if (err && !debug) {res.status(404).send("Invalid JWT Token");}
         else {
             console.log(userData);
             my_query();
@@ -407,19 +428,19 @@ router.get("/api/players/", verifyToken, (req, res, next) => {
 
     var my_query = () => {
 
-		var query_str = 'SELECT * FROM TransferMarkt_sp20.Players'
-		if (req.query.club_id !== undefined) query_str = 'SELECT * FROM TransferMarkt_sp20.Players WHERE ClubID = ?'
+		var query_str = 'SELECT * FROM TransferMarkt_sp20.Players';
+		if (req.query.club_id !== undefined) query_str = 'SELECT * FROM TransferMarkt_sp20.Players WHERE ClubID = ?';
 
 		global.connection.query(query_str, [req.query.club_id],
 			(error, results, field) => {
-        	if (error) throw error
+        	if (error) throw error;
         	res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
     	});
-	}
+	};
 
     // carry on with queries if token is verified
     jwt.verify(req.token, skey, (err, userData) => {
-        if (err && !debug) {res.status(404).send("Invalid JWT Token")}
+        if (err && !debug) {res.status(404).send("Invalid JWT Token");}
         else {
             console.log(userData);
             my_query();
@@ -430,17 +451,17 @@ router.get("/api/players/", verifyToken, (req, res, next) => {
 
 // GET Single Club:
 router.get("/api/clubs/:id", verifyToken, (req, res, next) => {
-    console.log("getting single club, req params id: "+req.params.id)
+    console.log("getting single club, req params id: "+req.params.id);
     var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Clubs WHERE ClubID = ?', 
 		[req.params.id], (error, results, field) => {
-        if (error) throw error
+        if (error) throw error;
         // console.log("players got: "+ JSON.stringify(results));
         res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
     });
 
     // carry on with queries if token is verified
     jwt.verify(req.token, skey, (err, userData) => {
-        if (err && !debug) {res.status(404).send("Invalid JWT Token")}
+        if (err && !debug) {res.status(404).send("Invalid JWT Token");}
         else {
             console.log(userData);
             my_query();
@@ -454,7 +475,7 @@ router.get("/api/clubs/", verifyToken, (req, res, next) => {
 
     var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Clubs', 
 		(error, results, field) => {
-        if (error) throw error
+        if (error) throw error;
         res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
     });
 
@@ -546,7 +567,7 @@ router.get("/api/transfers/", verifyToken, (req, res, next) => {
 // Update Player Info
 router.put("/api/players/:id", verifyToken, (req, res) => {
     
-    var query_str = `UPDATE TransferMarkt_sp20.Players SET ? WHERE playerId = ?`
+    var query_str = `UPDATE TransferMarkt_sp20.Players SET ? WHERE playerId = ?`;
     console.log(req.body);
     var my_query = () => global.connection.query(query_str, [req.body, req.params.id], (error, results, field) => {
         if (error) throw error;
@@ -585,7 +606,21 @@ router.put("/api/sign/:id", verifyToken, (req, res) => {
             else {
                 response.push(results[0]);
                 var rows = JSON.parse(JSON.stringify(results[0]));
-                if (rows.Approved) next();
+                if (rows.Approved) { 
+
+					// Check if trade package is valid
+					execute_trade(req.params.id, success => {
+                        
+                        if (success) {next();}
+					    else {
+                            // Invalidate the Package:
+                            global.connection.query('UPDATE TransferMarkt_sp20.Packages SET Status = Status * ? WHERE PackageId = ?', [0, req.params.id], (error, results, field) => {
+                                if (error) throw error;
+                                res.send(JSON.stringify({"status" : 200, "error" : null, "response" : "Trade rejected"}));
+                            });
+                        }
+                    }); 
+				}
                 else res.send(JSON.stringify({"status" : 200, "error" : null, "response" : response}));
             }
     });
@@ -719,7 +754,7 @@ router.delete("/api/players/:id", verifyToken, (req, res) => {
     });
     
     jwt.verify(req.token, skey, (err, userData) => {
-        if (err && !debug) { res.status(404).send("Invalid JWT Token") }
+        if (err && !debug) { res.status(404).send("Invalid JWT Token");}
         else {
             console.log(userData);
             // allow only if the player belongs to the admin's club
@@ -737,7 +772,7 @@ router.post("/api/login/", (req, res) => {
         pw: req.body.login_password,
         privilege: 0,
         clubId : 0
-    }
+    };
 
     global.connection.query("SELECT SaltedPassword, ClubID, AdminPrivilege FROM TransferMarkt_sp20.Managers WHERE Username = ?", [user.username], (error, results, fields) => {
         if (error) throw error;
@@ -763,7 +798,7 @@ router.post("/api/login/", (req, res) => {
                         if (err && !debug) throw err;
                         res.send(JSON.stringify({ "status": 200, "error": null, 
                         "response": token, "clubId": rows.ClubID,
-                    "username": req.body.login_username }));
+	                    "username": req.body.login_username }));
                     });
                 } else {
                     res.status(404).send("Wrong ID or Password");
@@ -781,3 +816,4 @@ app.listen(app.get( 'port'), () => {
     console.log('TransferMarkt API Server running.');
 
 });
+
