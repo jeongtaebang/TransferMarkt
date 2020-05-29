@@ -118,6 +118,98 @@ var createSignature = (clubID, packageID) => {
 };
 
 
+var updatePlayers = (packageID) => {
+	
+	
+	var get_league_info = (result) => global.connection.query("SELECT MinPlayersPerTeam, SalaryCap FROM TransferMarkt_sp20.Leagues WHERE LeagueID = 1",
+		(error, results, fields) => {
+			if (error) throw error;
+
+			result(results[0].MinPlayersPerTeam, results[0].SalaryCap);
+	});
+	
+
+	// Returns players that need to be updated and clubs involved in trade
+	var get_updates = (result) => {
+		global.connection.query("SELECT PlayerID, To, From, NewSalary FROM TransferMarkt_sp20.Requests WHERE PackageID = ?",
+			[packageID], (error, results, fields) => {
+
+				if (error) throw error;
+				
+				clubs_involved = new Set();
+				player_updates = []
+				results.forEach((result, index, array) => {
+
+					var player_update = [] // contains player ID, destination club, and new salary
+					player_update.push(result.PlayerID, result.To, result.NewSalary);
+					player_updates.push(player_update);
+
+					// Add teams that need to be checked
+					teams.add(result.To); // won't add duplicates by default
+					teams.add(result.From);
+
+					if (index === array.length){
+						result(player_updates, clubs_involved);
+					}
+
+				});
+			});
+	}
+
+
+	get_league_info((min_players, salary_cap) => {
+		get_updates((player_updates, clubs_involved) => {
+
+			// Transaction structure adapted from https://www.codediesel.com/nodejs/mysql-transactions-in-nodejs/ 
+			/* Begin transaction */
+			global.connection.beginTransaction((err) {
+				
+				if (error) throw error;
+
+				player_updates.forEach((player) => {
+
+					global.connection.query("UPDATE TransferMarkt_sp20.Players SET ClubID = ?, Salary = ? WHERE PlayerID = ?",
+						player, (error, results, fields) => {
+							if (error) {
+								connection.rollback({
+									throw error;
+								});
+							}
+							// Check if update is valid (team remains above min players and below salary cap)
+							clubs_involved.forEach((club) => {
+								global.connection.query("SELECT COUNT(PlayerID) AS NumPlayers, SUM(Salary) AS TeamSalaryPayout FROM Players WHERE ClubID = ?", 
+									club, (error, results, fields) => {
+										if (error) {
+											connection.rollback({
+												throw error;
+											});
+										}
+										if (results.NumPlayers < min_players || results.TeamSalaryPayout > salary_cap) {
+											connection.rollback({
+												// send response indicating failure of the trade
+											});
+										}
+									});
+							});
+						});
+				});
+				
+				global.connection.commit((err) {
+			        if (err) { 
+			          connection.rollback( {
+			            throw err;
+			          });
+			        }
+			    	console.log('Transaction Complete.');
+			    });
+			});
+			/* End transaction */			
+		}):
+	});
+	
+}
+
+
 // Match Player Club Id with User's Club Id
 var verifyClub = (playerId, clubId, next, res) => global.connection.query("SELECT clubId FROM TransferMarkt_sp20.Players WHERE playerId = ?", [playerId], (error, results, fields) => {
     if (error) throw error;
@@ -470,6 +562,7 @@ router.put("/api/players/:id", verifyToken, (req, res) => {
 
 // Sign Trade Package
 router.put("/api/sign/:id", verifyToken, (req, res) => {
+
     // insert to transfer table if package is approved
     var response = [];
 
