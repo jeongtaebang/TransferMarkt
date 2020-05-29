@@ -1,0 +1,63 @@
+TransferMarkt API Server running.
+TransferMarkt API Server running.
+TransferMarkt API Server running.
+TransferMarkt API Server running.
+/GET
+/GET
+in search; search_terms: Diego da Silva
+{
+  user: { username: 'chloeozzy', pw: 'walk51song', privilege: 1, clubId: 1 },
+  iat: 1590694671
+}
+[ 'diego', 'da', 'silva' ]
+[
+  [
+    '{"PlayerID":52,"FirstName":"Diego","LastName":"da Silva Costa","Age":30,"Salary":3442495,"ClubID":2}',
+    3
+  ],
+  [
+    '{"PlayerID":138,"FirstName":"Diego","LastName":"Carlos Santos Silva","Age":26,"Salary":2248610,"ClubID":8}',
+    2
+  ],
+  [
+    '{"PlayerID":29,"FirstName":"Marcelo","LastName":"Vieira da Silva Junior","Age":31,"Salary":4259444,"ClubID":5}',
+    2
+  ],
+  [
+    '{"PlayerID":65,"FirstName":"Willian","LastName":"Jose da Silva","Age":27,"Salary":3094807,"ClubID":7}',
+    2
+  ],
+  [
+    '{"PlayerID":121,"FirstName":"Sidnei","LastName":"Rechel da Silva Junior","Age":29,"Salary":2501232,"ClubID":3}',
+    2
+  ]
+]
+/GET
+in search; search_terms: Diego da Silva
+{
+  user: { username: 'chloeozzy', pw: 'walk51song', privilege: 1, clubId: 1 },
+  iat: 1590694671
+}
+[ 'diego', 'da', 'silva' ]
+[
+  [
+    '{"PlayerID":52,"FirstName":"Diego","LastName":"da Silva Costa","Age":30,"Salary":3442495,"ClubID":2}',
+    3
+  ],
+  [
+    '{"PlayerID":138,"FirstName":"Diego","LastName":"Carlos Santos Silva","Age":26,"Salary":2248610,"ClubID":8}',
+    2
+  ],
+  [
+    '{"PlayerID":29,"FirstName":"Marcelo","LastName":"Vieira da Silva Junior","Age":31,"Salary":4259444,"ClubID":5}',
+    2
+  ],
+  [
+    '{"PlayerID":65,"FirstName":"Willian","LastName":"Jose da Silva","Age":27,"Salary":3094807,"ClubID":7}',
+    2
+  ],
+  [
+    '{"PlayerID":121,"FirstName":"Sidnei","LastName":"Rechel da Silva Junior","Age":29,"Salary":2501232,"ClubID":3}',
+    2
+  ]
+]
