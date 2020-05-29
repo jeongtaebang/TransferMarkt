@@ -18,10 +18,8 @@ var app = express();
 const saltRound = 10;
 const skey = config.skey;
 
-// const userData = {
-//     privilege : 1,
-//     clubId : 1,
-// };
+const player_attribs = ["FirstName", "LastName", "Age", "Salary", "ClubID"];
+const request_attribs = ["From", "To", "PlayerID", "TransferFee", "NewSalary"];
 
 // Connect to database
 app.use((req, res, next) => {   
@@ -62,7 +60,7 @@ const verifyToken = (req, res, next) => {
         return;
     }
     const tokHeader = req.headers['authorization'];
-    if (typeof tokHeader !== undefined) {
+    if (typeof tokHeader !== 'undefined') {
         const bearer = tokHeader.split(' ');
         const token = bearer[1];
         req.token = token;
@@ -128,7 +126,7 @@ var verifyClub = (playerId, clubId, next, res) => global.connection.query("SELEC
     } else {
         var rows = JSON.parse(JSON.stringify(results[0]));
         
-        rows.clubId == clubId ? next() : res.status(404).send("Permission Denied."); // deploy ver
+        rows.clubId == clubId ? next() : res.status(404).send("Permission Denied: Player's Club ID and your Club ID do not match."); // deploy ver
         // rows.clubId == userData.user.clubId ? next() : console.log("Permission Denied."); // debug ver
     }
 });
@@ -293,6 +291,13 @@ router.get("/api/search_club/", verifyToken, (req, res, next) => {
 
 // GET single player:
 router.get("/api/players/:id", verifyToken, (req, res, next) => {
+    // check if ID is int
+    if (isNaN(req.params.id))
+    {
+        res.status(404).send("Player ID needs to be an INT.");
+        return;
+    }
+
     var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Players WHERE PlayerID = ?', 
 		[req.params.id], (error, results, field) => {
         if (error) throw error
@@ -314,7 +319,6 @@ router.get("/api/players/:id", verifyToken, (req, res, next) => {
 router.get("/api/players/", verifyToken, (req, res, next) => {
 
     var my_query = () => {
-
 		var query_str = 'SELECT * FROM TransferMarkt_sp20.Players'
 		if (req.query.club_id !== undefined) query_str = 'SELECT * FROM TransferMarkt_sp20.Players WHERE ClubID = ?'
 
@@ -338,6 +342,12 @@ router.get("/api/players/", verifyToken, (req, res, next) => {
 
 // GET Single Club:
 router.get("/api/clubs/:id", verifyToken, (req, res, next) => {
+    // check if ID is int
+    if (isNaN(req.params.id))
+    {
+        res.status(404).send("Club ID needs to be INT.");
+        return;
+    }
     console.log("getting single club, req params id: "+req.params.id)
     var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Clubs WHERE ClubID = ?', 
 		[req.params.id], (error, results, field) => {
@@ -379,6 +389,10 @@ router.get("/api/clubs/", verifyToken, (req, res, next) => {
 
 // GET Trade by ID:
 router.get("/api/trade/:id", verifyToken, (req, res, next) => {
+    // check if ID is string
+    if (typeof req.params.id !== 'string')
+        req.params.id = String(req.params.id)
+
     var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Requests WHERE PackageID = ?', 
     [req.params.id], (error, results, field) => {
        if (error) throw error;
@@ -416,6 +430,13 @@ router.get("/api/trade/", verifyToken, (req, res, next) => {
 
 // Fetch past 10 tranfers clubID
 router.get("/api/transfers/:id", verifyToken, (req, res, next) => {
+    // check if ID is number
+    if (isNaN(req.params.id))
+    {
+        res.status(404).send("Club ID needs to be INT.");
+        return;
+    }
+
     var my_query = () => global.connection.query('SELECT t.PackageID, t.Date_Signed FROM TransferMarkt_sp20.Transfers t, TransferMarkt_sp20.Signatures s WHERE t.PackageID = s.PackageID AND s.ClubID = ? ORDER BY t.Date_Signed DESC LIMIT 10', 
     [req.params.id], (error, results, field) => {
        if (error) throw error;
@@ -453,9 +474,14 @@ router.get("/api/transfers/", verifyToken, (req, res, next) => {
 // PUT
 // Update Player Info
 router.put("/api/players/:id", verifyToken, (req, res) => {
-    
+    if (typeof req.params.id != 'number')
+    {
+        res.status(404).send("Player ID needs to be INT.");
+        return;
+    }
+
     var query_str = `UPDATE TransferMarkt_sp20.Players SET ? WHERE playerId = ?`
-    console.log(req.body);
+    console.log(`Received:\n${req.body}`);
     var my_query = () => global.connection.query(query_str, [req.body, req.params.id], (error, results, field) => {
         if (error) throw error;
         else res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
@@ -471,13 +497,13 @@ router.put("/api/players/:id", verifyToken, (req, res) => {
 // Sign Trade Package
 router.put("/api/sign/:id", verifyToken, (req, res) => {
     // insert to transfer table if package is approved
-    var response = [];
+    var response = {Approved : false};
 
     var insert_to_transfer = () => global.connection.query('INSERT INTO TransferMarkt_sp20.Transfers VALUES(?, CURRENT_TIMESTAMP)', [req.params.id], (error, results, field) => {
         if (error) throw error;
         else
         {
-            response.push(results);
+            response.Approved = true;
             res.send(JSON.stringify({"status" : 200, "error" : null, "response" : response}));
         }
     });
@@ -501,18 +527,14 @@ router.put("/api/sign/:id", verifyToken, (req, res) => {
     var update_package = () => global.connection.query('UPDATE TransferMarkt_sp20.Packages SET Status = Status * ? WHERE PackageId = ?', [req.body.status, req.params.id], (error, results, field) => {
         if (error) throw error;
         else
-        {
-            console.log(`Package %${req.body.status}% Status Updated.`);
-            response.push(results);
-        }
+            console.log(`Package ${req.body.status} Status Updated.`);
     });
     
     // update signature entry
     var update_signature = (u) => global.connection.query('UPDATE TransferMarkt_sp20.Signatures SET Status = ? WHERE PackageId = ? AND ClubId = ?', [req.body.status, req.params.id, u.clubId], (error, results, field) => {
         if (error) throw error;
         else 
-            response.push(results);
-        check_complete(insert_to_transfer);
+            check_complete(insert_to_transfer);
     });
 
     jwt.verify(req.token, skey, (err, userData) => {
@@ -530,14 +552,21 @@ router.put("/api/sign/:id", verifyToken, (req, res) => {
 // POST
 // New Player
 router.post("/api/players/", verifyToken, (req, res) => {
+    for(const attrib of player_attribs)
+        if (!req.body.hasOwnProperty(attrib))
+            {
+                res.status(404).send(`${attrib} not found in body`);
+                return;
+            }
+    
     var player = createPlayer(req.body);
-    var response = [];
+    var response = {CreatePlayer : false, UpdatePosition : false};
 
     var new_player = () => global.connection.query('INSERT INTO TransferMarkt_sp20.Players VALUES(?)', [Object.values(player)], (error, results, field) => {
         if (error) throw error;
         else
         {
-            response.push(results);            
+            response.CreatePlayer = true;            
             update_position(req.body.Positions, 0, results.insertId);
         }
     });
@@ -550,7 +579,7 @@ router.post("/api/players/", verifyToken, (req, res) => {
                 if (error) throw error;
                 else 
                 {
-                    response.push(results);
+                    response.UpdatePosition = true;
                     update_position(positions, index + 1, playerId);
                 }
             });
@@ -572,13 +601,33 @@ router.post("/api/players/", verifyToken, (req, res) => {
 
 // Make Trade Package Request
 router.post("/api/trade/", verifyToken, (req, res) => {
-    
+    // Check if body contains requests
+    if (!("requests" in req.body) || !Array.isArray(req.body.requests))
+    {
+        res.status(404).send("Body Missing Requests Field or Requests is not an array");
+        return;
+    }
+
     var packageID = uuidv1();
 
     var teams = new Set();
+    var halt = false;
+    var response = {PackageID : packageID}
 
-    var create_requests = () => req.body.requests.forEach((request) =>
+    var create_requests = () => req.body.requests.forEach((request, index, array) =>
     {
+        // Check if a request has all necessary attributes
+        for (const attrib of request_attribs)    
+            if (!request.hasOwnProperty(attrib))
+                {
+                    res.status(404).send(`Request missing ${attrib}.`);
+                    halt = true;
+                    return;
+                }
+        
+        if (halt)
+            return;
+        
         global.connection.query('INSERT INTO TransferMarkt_sp20.Requests VALUES(?)', [Object.values(createRequest(request, packageID))], (error, results, field) => {
             if (error) throw error;
             else if (!teams.has(request.To))
@@ -596,6 +645,9 @@ router.post("/api/trade/", verifyToken, (req, res) => {
                 });
             }
         });
+
+        if (index == array.length - 1)
+            res.send(JSON.stringify({"status" : 200, "error" : null, "response" : response}));
     });
 
     // trade package status defaulted to be accepted for easier backend processing (0 = rejected, 1 = accepted)
@@ -610,7 +662,6 @@ router.post("/api/trade/", verifyToken, (req, res) => {
         else
         {
             create_trade();
-            res.send(JSON.stringify({"status" : 200, "error" : null, "response" : packageID}));
         }    
     });
 
@@ -619,6 +670,13 @@ router.post("/api/trade/", verifyToken, (req, res) => {
 // DELETE
 // Delete player info
 router.delete("/api/players/:id", verifyToken, (req, res) => {
+    // Check if id is int
+    if (isNaN(req.params.id))
+    {
+        res.status(404).send("Player ID needs to be INT.");
+        return;
+    }
+
     // callback to delete if admin
     admin_query = () => global.connection.query('DELETE FROM TransferMarkt_sp20.Players WHERE playerId = ?', [Number(req.params.id)], (error, results, field) => {
         if (error) throw error;
