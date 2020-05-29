@@ -529,7 +529,7 @@ router.get("/api/trade/", verifyToken, (req, res, next) => {
 
 // Fetch past 10 tranfers clubID
 router.get("/api/transfers/:id", verifyToken, (req, res, next) => {
-    var my_query = () => global.connection.query('SELECT t.PackageID, t.Date_Signed FROM TransferMarkt_sp20.Transfers t, TransferMarkt_sp20.Signatures s WHERE t.PackageID = s.PackageID AND s.ClubID = ? ORDER BY t.Date_Signed DESC LIMIT 10', 
+    var my_query = () => global.connection.query('SELECT t.PackageID, t.DateSigned FROM TransferMarkt_sp20.Transfers t, TransferMarkt_sp20.Signatures s WHERE t.PackageID = s.PackageID AND s.ClubID = ? ORDER BY t.DateSigned DESC LIMIT 10', 
     [req.params.id], (error, results, field) => {
        if (error) throw error;
        else res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
@@ -547,7 +547,7 @@ router.get("/api/transfers/:id", verifyToken, (req, res, next) => {
 
 // Fetch past 10 tranfers
 router.get("/api/transfers/", verifyToken, (req, res, next) => {
-    var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Transfers ORDER BY Date_Signed DESC LIMIT 10', 
+    var my_query = () => global.connection.query('SELECT * FROM TransferMarkt_sp20.Transfers ORDER BY DateSigned DESC LIMIT 10', 
     [], (error, results, field) => {
        if (error) throw error;
        else res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
