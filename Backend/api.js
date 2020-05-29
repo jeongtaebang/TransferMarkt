@@ -826,7 +826,7 @@ router.put("/api/sign/:id", verifyToken, (req, res) => {
             if (results.length === 0 || typeof results === undefined)
                 res.status(404).send("Package ID NOT FOUND.");
             else {
-                response.push(results[0]);
+
                 var rows = JSON.parse(JSON.stringify(results[0]));
                 if (rows.Approved) { 
 
@@ -838,7 +838,7 @@ router.put("/api/sign/:id", verifyToken, (req, res) => {
                             // Invalidate the Package:
                             global.connection.query('UPDATE TransferMarkt_sp20.Packages SET Status = Status * ? WHERE PackageId = ?', [0, req.params.id], (error, results, field) => {
                                 if (error) res.status(404).send(error);
-                                else res.send(JSON.stringify({"status" : 200, "error" : null, "response" : "Trade rejected"}));
+                                else res.send(JSON.stringify({"status" : 200, "error" : null, "response" : response}));
                             });
                         }
                     }); 
