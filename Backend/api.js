@@ -59,9 +59,8 @@ const verifyToken = (req, res, next) => {
         next();
         return;
     }
-};
 
-const tokHeader = req.headers['authorization'];
+	const tokHeader = req.headers['authorization'];
     if (typeof tokHeader !== 'undefined') {
         const bearer = tokHeader.split(' ');
         const token = bearer[1];
@@ -70,7 +69,7 @@ const tokHeader = req.headers['authorization'];
     } else {
         res.status(404).send("Permission denied");
     }
-
+};
 
 var getDate = () => {
     return new Date().toISOString().slice(0, 19).replace('T', ' ');
