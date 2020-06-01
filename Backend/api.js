@@ -123,7 +123,10 @@ var execute_trade = (packageID, success) => {
 	
 	var get_league_info = (result) => global.connection.query("SELECT SalaryCap FROM TransferMarkt_sp20.Leagues WHERE LeagueID = 1",
 	(error, results, fields) => {
-		if (error) res.status(404).send(error);
+        if (error){
+            console.log(error);
+            return;
+        }
 		else result(results[0].SalaryCap);
 	});
 	
@@ -139,7 +142,7 @@ var execute_trade = (packageID, success) => {
 
             if (error)
             {
-                res.status(404).send(error);
+                console.log(error);
                 return;
             }
 			clubs_involved = new Set();
@@ -153,7 +156,7 @@ var execute_trade = (packageID, success) => {
 				[request.To, request.NewSalary, request.PlayerID] , (error, results, fields) => {
 					if (error) {
 						global.connection.rollback(() => {
-                            res.status(404).send(error);
+                            console.log(error);
                             return;
 						});
 					}
@@ -186,7 +189,7 @@ var execute_trade = (packageID, success) => {
 						passed(false);
 					});
                 }
-    			else if (index === array.length) {
+    			else if (index === array.length - 1) {
                     console.log(`Package Accepted: All involved clubs meet salary cap constraint`);
                     passed(true);
                 }
@@ -196,12 +199,11 @@ var execute_trade = (packageID, success) => {
 
 	// Get Salary Cap
 	get_league_info((salary_cap) => {
-
 		// Begin transaction
 		global.connection.beginTransaction((error) => {
             if (error)
             {
-                res.status(404).send(error);
+                console.log(error);
                 return;
             }
 
@@ -829,11 +831,11 @@ router.put("/api/sign/:id", verifyToken, (req, res) => {
 
                 var rows = JSON.parse(JSON.stringify(results[0]));
                 if (rows.Approved) { 
-
+                    
 					// Check if trade package is valid
 					execute_trade(req.params.id, success => {
                         
-                        if (success) {next();}
+                        if (success) next();
 					    else {
                             // Invalidate the Package:
                             global.connection.query('UPDATE TransferMarkt_sp20.Packages SET Status = Status * ? WHERE PackageId = ?', [0, req.params.id], (error, results, field) => {
@@ -982,7 +984,12 @@ router.post("/api/trade/", verifyToken, (req, res) => {
         
         global.connection.query('INSERT INTO TransferMarkt_sp20.Requests VALUES(?)', [Object.values(createRequest(request, packageID))], (error, results, field) => {
             console.log("insert results: " + JSON.stringify(results));
-            if (error) res.status(404).send(error);
+            if (error)
+            {
+                console.log(error);
+                if (!res.headersSent)     
+                    res.status(404).send(error);
+            }
             else
             {
                 if(!teams.has(request.To))
@@ -1011,7 +1018,9 @@ router.post("/api/trade/", verifyToken, (req, res) => {
         });
 
         if (index == array.length - 1)
+        {
             res.send(JSON.stringify({"status" : 200, "error" : null, "response" : response}));
+        }
     });
 
     // trade package status defaulted to be accepted for easier backend processing (0 = rejected, 1 = accepted)
