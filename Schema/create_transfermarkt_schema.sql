@@ -23,7 +23,6 @@ USE `TransferMarkt_sp20` ;
 CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Leagues` (
   `LeagueID` INT(11) NOT NULL AUTO_INCREMENT,
   `LeagueName` VARCHAR(45) NOT NULL,
-  `MinPlayersPerTeam` INT(11) NOT NULL,
   `SalaryCap` INT(11) NOT NULL,
   PRIMARY KEY (`LeagueID`))
 ENGINE = InnoDB
@@ -186,7 +185,7 @@ DEFAULT CHARACTER SET = latin1;
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Transfers` (
   `PackageID` VARCHAR(40) NOT NULL,
-  `Date_Signed` DATE NOT NULL,
+  `DateSigned` DATE NOT NULL,
   PRIMARY KEY (`PackageID`),
   CONSTRAINT `fk_Transfers_Packages1`
     FOREIGN KEY (`PackageID`)

@@ -198,7 +198,7 @@ var execute_trade = (packageID, success) => {
             }
             else
             {
-                check_constraints(clubs_involved, index + 1, salary_cap, passed)
+                check_constraints(clubs_involved, index + 1, salary_cap, passed);
             }
 		});
 	};
