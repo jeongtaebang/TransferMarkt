@@ -3,8 +3,8 @@ let mysql = require('mysql');
 const bodyParser = require('body-parser');
 
 // Select config to use:
-// var config = require('./config');
-var config = require('./config-aws');
+var config = require('./config');
+// var config = require('./config-aws');
 let jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { v1: uuidv1 } = require('uuid');
@@ -986,46 +986,47 @@ router.post("/api/trade/", verifyToken, (req, res) => {
         
         if (halt)
             return;
-        
-        global.connection.query('INSERT INTO TransferMarkt_sp20.Requests VALUES(?)', [Object.values(createRequest(request, packageID))], (error, results, field) => {
-            console.log("insert results: " + JSON.stringify(results));
-            if (error)
-            {
-                console.log(error);
-                if (!res.headersSent)     
-                    res.status(404).send(error);
-            }
-            else
-            {
-                if(!teams.has(request.To))
-                {
-                    teams.add(request.To);
-                    global.connection.query('INSERT INTO TransferMarkt_sp20.Signatures VALUES(?)', [Object.values(createSignature(request.To, packageID))], (error, results, field) => {
-                        if (error)
-                        {
-                            res.status(404).send(error);
-                            return;
-                        }
-                    });
-                }
-                if (!teams.has(request.From))
-                {
-                    teams.add(request.From);
-                    global.connection.query('INSERT INTO TransferMarkt_sp20.Signatures VALUES(?)', [Object.values(createSignature(request.From, packageID))], (error, results, field) => {
-                        if (error)
-                        {
-                            res.status(404).send(error);
-                            return;
-                        }
-                    });
-                }
-            }
-        });
 
-        if (index == array.length - 1)
-        {
-            res.send(JSON.stringify({"status" : 200, "error" : null, "response" : response}));
-        }
+        verifyClub(request.PlayerID, request.From, () =>
+            global.connection.query('INSERT INTO TransferMarkt_sp20.Requests VALUES(?)', [Object.values(createRequest(request, packageID))], (error, results, field) => {
+                console.log("insert results: " + JSON.stringify(results));
+                if (error)
+                {
+                    console.log(error);
+                    if (!res.headersSent)     
+                        res.status(404).send(error);
+                }
+                else
+                {
+                    if(!teams.has(request.To))
+                    {
+                        teams.add(request.To);
+                        global.connection.query('INSERT INTO TransferMarkt_sp20.Signatures VALUES(?)', [Object.values(createSignature(request.To, packageID))], (error, results, field) => {
+                            if (error)
+                            {
+                                res.status(404).send(error);
+                                return;
+                            }
+                        });
+                    }
+                    if (!teams.has(request.From))
+                    {
+                        teams.add(request.From);
+                        global.connection.query('INSERT INTO TransferMarkt_sp20.Signatures VALUES(?)', [Object.values(createSignature(request.From, packageID))], (error, results, field) => {
+                            if (error)
+                            {
+                                res.status(404).send(error);
+                                return;
+                            }
+                        });
+                    }
+    
+                    if (index == array.length - 1 && !res.headersSent)
+                    {
+                        res.send(JSON.stringify({"status" : 200, "error" : null, "response" : response}));
+                    }
+                }
+        }), null, res);
     });
 
     // trade package status defaulted to be accepted for easier backend processing (0 = rejected, 1 = accepted)
