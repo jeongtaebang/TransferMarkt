@@ -7,6 +7,7 @@ Our application is a central management hub that can be used by soccer league ma
 Potentially, sports league organizations can use this application to manage information during their transfer windows. In the future, the application may be extended to form a network of transfer systems consisting of multiple leagues that can handle inter-league transfers.  
 
 ## Schema Folder:
+- `TransferMarkt_dump.sql`: Our database export.
 - `create_transfermarkt_schema.sql`: The script used to generate the database schema (may need to be modified before running on MariaDB database).
 - `TransferMarkt_sp20.mwb`: Model used to forward engineer the database.
 - `data_prep.ipynb`: Python notebook to generate data for the schema and import it into the database.
@@ -22,8 +23,9 @@ Potentially, sports league organizations can use this application to manage info
 
 
 ## Running on localhost:
-- Create a new database by using the `transfermarkt-dump.sql` file. Alternatively you can run `create_transfermarkt_schema.sql` to generate the database schema, and then populate the database with the original FIFA data by running `python3 data_prep.py` from the Schema directory. Make sure to change the database connection used in `data_prep.py` (see the line with `db = db.create_engine` towards the bottom of the script). 
-- Run `node api.js` in the Backend directory to start the database.
+- Create a new database by using the `TransferMarkt_dump.sql` file. Alternatively you can run `create_transfermarkt_schema.sql` to generate the database schema, and then populate the database with the original FIFA data by running `python3 data_prep.py` from the Schema directory. Make sure to change the database connection used in `data_prep.py` (see the line with `db = db.create_engine` towards the bottom of the script).
+- Edit `config.js` to match your new database and edit `api.js` such that `var config = require('./config')`.
+- Run `node api.js` in the Backend directory to start the backend.
 - Start the front end with `yarn start` (see seperate front end github repo `https://github.com/GillianYue/61_frontend` for details).
 
 ## Website:
