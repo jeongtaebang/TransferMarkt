@@ -206,6 +206,7 @@ var execute_trade = (packageID, success) => {
 
 		if (error)
 		{
+			console.log(error);
 			success(false);
 		}
 
@@ -213,6 +214,7 @@ var execute_trade = (packageID, success) => {
 		global.connection.beginTransaction((error) => {
             if (error)
             {
+                console.log(error);
 				success(false);
             }
 
@@ -221,6 +223,7 @@ var execute_trade = (packageID, success) => {
 
 				if (error)
 				{
+					console.log(error);
 					success(false);
 				}
 
@@ -1008,7 +1011,12 @@ router.post("/api/trade/", verifyToken, (req, res) => {
         
         global.connection.query('INSERT INTO TransferMarkt_sp20.Requests VALUES(?)', [Object.values(createRequest(request, packageID))], (error, results, field) => {
             console.log("insert results: " + JSON.stringify(results));
-            if (error) res.status(404).send(error);
+            if (error)
+            {
+                console.log(error);
+                if (!res.headersSent)     
+                    res.status(404).send(error);
+            }
             else
             {
                 if(!teams.has(request.To))
@@ -1037,7 +1045,9 @@ router.post("/api/trade/", verifyToken, (req, res) => {
         });
 
         if (index == array.length - 1)
+        {
             res.send(JSON.stringify({"status" : 200, "error" : null, "response" : response}));
+        }
     });
 
     // trade package status defaulted to be accepted for easier backend processing (0 = rejected, 1 = accepted)
