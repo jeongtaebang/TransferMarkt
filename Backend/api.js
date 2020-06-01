@@ -3,8 +3,8 @@ let mysql = require('mysql');
 const bodyParser = require('body-parser');
 
 // Select config to use:
-var config = require('./config');
-// var config = require('./config-aws');
+// var config = require('./config');
+var config = require('./config-aws');
 let jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { v1: uuidv1 } = require('uuid');
