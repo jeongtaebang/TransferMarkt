@@ -21,17 +21,19 @@ const skey = config.skey;
 const player_attribs = ["FirstName", "LastName", "Age", "Salary", "ClubID"];
 const request_attribs = ["From", "To", "PlayerID", "TransferFee", "NewSalary"];
 
-// Connect to database
-app.use((req, res, next) => {   
-    global.connection = mysql.createConnection({
-        host : config.database.host,
-        user : config.database.user,
-        password : config.database.password,
-        database : config.database.schema
-    });
-    connection.connect();
-    next();
+global.connection = mysql.createConnection({
+    host : config.database.host,
+    user : config.database.user,
+    password : config.database.password,
+    database : config.database.schema
 });
+
+connection.connect();
+
+// // Connect to database
+// app.use((req, res, next) => {   
+//     next();
+// });
 
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json());
@@ -123,14 +125,11 @@ var execute_trade = (packageID, success) => {
 	
 	var get_league_info = (result) => global.connection.query("SELECT SalaryCap FROM TransferMarkt_sp20.Leagues WHERE LeagueID = 1",
 	(error, results, fields) => {
-		if (error) {
-			console.log(error);
-			result(error, null);
-		}
-		else {
-			console.log("Got Salary Cap");
-			result(null, results[0].SalaryCap);
-		}
+        if (error){
+            console.log(error);
+            return;
+        }
+		else result(results[0].SalaryCap);
 	});
 	
 
@@ -145,8 +144,8 @@ var execute_trade = (packageID, success) => {
 
             if (error)
             {
-				console.log(error);
-				result(error, null);
+                console.log(error);
+                return;
             }
 			clubs_involved = new Set();
 			results.forEach((request, index, array) => {
@@ -159,13 +158,12 @@ var execute_trade = (packageID, success) => {
 				[request.To, request.NewSalary, request.PlayerID] , (error, results, fields) => {
 					if (error) {
 						global.connection.rollback(() => {
-							console.log(error);
-							result(error, null);
+                            console.log(error);
+                            return;
 						});
 					}
 					else if (index === array.length - 1) {
-						console.log("Got clubs involved");
-						result(null, clubs_involved);
+						result(clubs_involved);
                     }
 				});
 			});
@@ -202,31 +200,17 @@ var execute_trade = (packageID, success) => {
 	};
 
 	// Get Salary Cap
-	get_league_info((error, salary_cap) => {
-
-		if (error)
-		{
-			console.log(error);
-			success(false);
-		}
-
+	get_league_info((salary_cap) => {
 		// Begin transaction
 		global.connection.beginTransaction((error) => {
             if (error)
             {
                 console.log(error);
-				success(false);
+                return;
             }
 
 			// Update player clubs and salaries affected by trade
-			updates_players((error, clubs_involved) => {
-
-				if (error)
-				{
-					console.log(error);
-					success(false);
-				}
-
+			updates_players(clubs_involved => {
 				
 				// Ensure that no clubs are over the salary cap
 				check_constraints(clubs_involved, salary_cap, passed => {
@@ -849,19 +833,12 @@ router.put("/api/sign/:id", verifyToken, (req, res) => {
 
                 var rows = JSON.parse(JSON.stringify(results[0]));
                 if (rows.Approved) { 
-
-					console.log("Threshold number of signatures reached");
-					
+                    
 					// Check if trade package is valid
 					execute_trade(req.params.id, success => {
-
-                        if (success) {
-							console.log("Trade execution success");
-							next();
-						}
+                        
+                        if (success) next();
 					    else {
-							console.log("Trade execution failure");
-							next();
                             // Invalidate the Package:
                             global.connection.query('UPDATE TransferMarkt_sp20.Packages SET Status = Status * ? WHERE PackageId = ?', [0, req.params.id], (error, results, field) => {
                                 if (error) res.status(404).send(error);
@@ -870,10 +847,7 @@ router.put("/api/sign/:id", verifyToken, (req, res) => {
                         }
                     }); 
 				}
-                else {
-					console.log("Threshold number of signatures NOT reached");
-					res.send(JSON.stringify({"status" : 200, "error" : null, "response" : response}));
-				}
+                else res.send(JSON.stringify({"status" : 200, "error" : null, "response" : response}));
             }
     });
 
@@ -900,6 +874,7 @@ router.put("/api/sign/:id", verifyToken, (req, res) => {
             update_signature(userData.user);
         }
     });
+
 });
 
 // POST
