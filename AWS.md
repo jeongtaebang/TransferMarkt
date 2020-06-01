@@ -14,7 +14,13 @@ Since another user might already be running the DB, make sure to kill all node i
  - `node api.js` if you plan to keep the connection the the server open and want to test actively
 - `nohup node api.js &` if you want the backend to remain up even after your connection to the server drops.
 
-Same process applies for the frontend if you want to run the frontend on the server as well.
+### Running the Front End:
+1. Alter the URL found in /src/actions/index.js from http://localhost:3000/api to http://100.25.141.132:3000/api
+2. npm install -g serve
+3. yarn build in the root directory of the front end codebase
+4. You cannot bind to low ports without root permissions... however, root does not have access to the user-level programs that node and yarn use. In order to keep the front end alive indefinetly, you can pass sudo your user environment path and have it run "serve" for you on port 80. This will make the front end available in the outside world: `sudo env "PATH=$PATH" nohup serve -s build -l 80`
+
+To later kill the server, run `sudo fuser -k -n tcp 80`.
 
 ### Accessing the Backend:
 Simply replace localhost with `100.25.141.132` in your API calls.
