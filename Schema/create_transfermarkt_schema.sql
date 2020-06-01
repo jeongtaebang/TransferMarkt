@@ -98,8 +98,8 @@ CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Players` (
   CONSTRAINT `fk_Players_Clubs1`
     FOREIGN KEY (`ClubID`)
     REFERENCES `TransferMarkt_sp20`.`Clubs` (`ClubID`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
 ENGINE = InnoDB
 AUTO_INCREMENT = 628
 DEFAULT CHARACTER SET = latin1;
@@ -160,13 +160,13 @@ CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Requests` (
   CONSTRAINT `fk_Requests_Clubs_FROM`
     FOREIGN KEY (`From`)
     REFERENCES `TransferMarkt_sp20`.`Clubs` (`ClubID`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION,
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
   CONSTRAINT `fk_Requests_Clubs_TO`
     FOREIGN KEY (`To`)
     REFERENCES `TransferMarkt_sp20`.`Clubs` (`ClubID`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION,
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
   CONSTRAINT `fk_Requests_Packages1`
     FOREIGN KEY (`PackageID`)
     REFERENCES `TransferMarkt_sp20`.`Packages` (`PackageID`)
@@ -175,8 +175,8 @@ CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Requests` (
   CONSTRAINT `fk_Requests_Players1`
     FOREIGN KEY (`PlayerID`)
     REFERENCES `TransferMarkt_sp20`.`Players` (`PlayerID`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = latin1;
 
@@ -191,8 +191,8 @@ CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Transfers` (
   CONSTRAINT `fk_Transfers_Packages1`
     FOREIGN KEY (`PackageID`)
     REFERENCES `TransferMarkt_sp20`.`Packages` (`PackageID`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = latin1;
 
@@ -209,13 +209,13 @@ CREATE TABLE IF NOT EXISTS `TransferMarkt_sp20`.`Signatures` (
   CONSTRAINT `fk_Signatures_Packages1`
     FOREIGN KEY (`PackageID`)
     REFERENCES `TransferMarkt_sp20`.`Packages` (`PackageID`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION,
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
   CONSTRAINT `fk_Signatures_Clubs1`
     FOREIGN KEY (`ClubID`)
     REFERENCES `TransferMarkt_sp20`.`Clubs` (`ClubID`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
 ENGINE = InnoDB;
 
 

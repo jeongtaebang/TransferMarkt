@@ -107,9 +107,9 @@ players = players[['index', 'first_name', 'last_name', 'age', 'club', 'salary']]
 players = players.rename(columns={"index": "PlayerID", "first_name": "FirstName", "last_name": "LastName",
                                   "club": "ClubID","salary": "Salary", "age": "Age"})
 
-# Create Clubs DF
+# Create Clubs DF (150 Million Salary Cap)
 leagues = pd.DataFrame([{'LeagueID': 1, 'LeagueName': 'La Liga Series A', 
-                         'SalaryCap': 800000000, 'MinPlayersPerTeam': 20}])
+                         'SalaryCap': 115000000}])
 
 # Create Managers DF
 usernames = ['chloeozzy','muttiesreeping','poppyovercast','refluxanthology','ludibriousjump',
