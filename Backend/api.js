@@ -21,15 +21,20 @@ const skey = config.skey;
 const player_attribs = ["FirstName", "LastName", "Age", "Salary", "ClubID"];
 const request_attribs = ["From", "To", "PlayerID", "TransferFee", "NewSalary"];
 
+global.connection = mysql.createConnection({
+    host : config.database.host,
+    user : config.database.user,
+    password : config.database.password,
+    database : config.database.schema
+});
+
+connection.connect();
+
 // Connect to database
 app.use((req, res, next) => {   
-    global.connection = mysql.createConnection({
-        host : config.database.host,
-        user : config.database.user,
-        password : config.database.password,
-        database : config.database.schema
-    });
-    connection.connect();
+    console.log(global.connection.state);
+    if (global.connection.state === `disconnected`)
+        global.connection.connect();
     next();
 });
 
@@ -123,14 +128,11 @@ var execute_trade = (packageID, success) => {
 	
 	var get_league_info = (result) => global.connection.query("SELECT SalaryCap FROM TransferMarkt_sp20.Leagues WHERE LeagueID = 1",
 	(error, results, fields) => {
-		if (error) {
-			console.log(error);
-			result(error, null);
-		}
-		else {
-			console.log("Got Salary Cap");
-			result(null, results[0].SalaryCap);
-		}
+        if (error){
+            console.log(error);
+            return;
+        }
+		else result(results[0].SalaryCap);
 	});
 	
 
@@ -145,8 +147,8 @@ var execute_trade = (packageID, success) => {
 
             if (error)
             {
-				console.log(error);
-				result(error, null);
+                console.log(error);
+                return;
             }
 			clubs_involved = new Set();
 			results.forEach((request, index, array) => {
@@ -159,77 +161,63 @@ var execute_trade = (packageID, success) => {
 				[request.To, request.NewSalary, request.PlayerID] , (error, results, fields) => {
 					if (error) {
 						global.connection.rollback(() => {
-							console.log(error);
-							result(error, null);
-						});
+                            console.log(error);
+                        });
+                        return;
 					}
-					else if (index === array.length - 1) {
-						console.log("Got clubs involved");
-						result(null, clubs_involved);
+					else if (index == array.length - 1) {
+						result(clubs_involved);
                     }
 				});
 			});
 		});
 	};
-	
-	// Expects to be called from within a transaction.
+    
+    // Expects to be called from within a transaction.
 	// Checks that all clubs are below the salary cap. Returns true if so, false if not.
-	var check_constraints = (clubs_involved, salary_cap, passed) => {
+	var check_constraints = (clubs_involved, index, salary_cap, passed) => {
 
         let clubs_array = Array.from(clubs_involved);
-
-		clubs_array.forEach((clubID, index, array) => {
-			global.connection.query("SELECT SUM(Salary) AS TeamSalary FROM Players WHERE ClubID = ? LIMIT 1", 
-			[clubID], (error, results, fields) => {
-				if (error) {
-					connection.rollback(() => {
-                        console.log(`Package Rejected: ${String(error)}`);
-						passed(false);
-					});
-				}
-				else if (results[0].TeamSalary > salary_cap) {
-					connection.rollback(() => {
-                        console.log(`Package Rejected: Club ${clubID}'s salary, ${results[0].TeamSalary}, is greater than salary cap ${salary_cap}`);
-						passed(false);
-					});
-                }
-    			else if (index === array.length - 1) {
-                    console.log(`Package Accepted: All involved clubs meet salary cap constraint`);
-                    passed(true);
-                }
-			});
+        console.log("check_constraint", index);
+        global.connection.query("SELECT SUM(Salary) AS TeamSalary FROM Players WHERE ClubID = ? LIMIT 1", 
+        [clubs_array[index]], (error, results, fields) => {
+            if (error) {
+                console.log(`Package Rejected: ${String(error)}`);
+                passed(false);
+                return;
+            }
+            else if (results[0].TeamSalary > salary_cap) {
+                console.log(`Package Rejected: Club ${clubs_array[index]}'s salary, ${results[0].TeamSalary}, is greater than salary cap ${salary_cap}`);
+                passed(false);
+                return;
+            }
+            else if (index >= clubs_array.length - 1) {
+                console.log(`Package Accepted: All involved clubs meet salary cap constraint`);
+                passed(true);
+                return;
+            }
+            else
+            {
+                check_constraints(clubs_involved, index + 1, salary_cap, passed)
+            }
 		});
 	};
 
 	// Get Salary Cap
-	get_league_info((error, salary_cap) => {
-
-		if (error)
-		{
-			console.log(error);
-			success(false);
-		}
-
+	get_league_info((salary_cap) => {
 		// Begin transaction
 		global.connection.beginTransaction((error) => {
             if (error)
             {
                 console.log(error);
-				success(false);
+                return;
             }
 
 			// Update player clubs and salaries affected by trade
-			updates_players((error, clubs_involved) => {
-
-				if (error)
-				{
-					console.log(error);
-					success(false);
-				}
-
+			updates_players(clubs_involved => {
 				
 				// Ensure that no clubs are over the salary cap
-				check_constraints(clubs_involved, salary_cap, passed => {
+				check_constraints(clubs_involved, 0, salary_cap, passed => {
 
 					if (!passed) {
 						connection.rollback(() => {
@@ -272,7 +260,7 @@ var verifyClub = (playerId, clubId, next, param, res) => global.connection.query
         res.status(404).send(`No Player Found with ${playerId}.`);
     } else {
         var rows = JSON.parse(JSON.stringify(results[0]));
-        rows.clubId == clubId ? (param ? next(param) : next()) : res.status(404).send("Permission Denied: Player's Club ID and your Club ID do not match."); // deploy ver
+        rows.clubId == clubId ? (param ? next(param) : next()) : (!res.headersSent? res.status(404).send("Permission Denied: Player's Club ID and your Club ID do not match.") : console.log("Permission Denied: Player's Club ID and your Club ID do not match.")); // deploy ver
         // rows.clubId == userData.user.clubId ? next() : console.log("Permission Denied."); // debug ver
     }
 });
@@ -670,7 +658,7 @@ router.get("/api/trade/:id", verifyToken, (req, res, next) => {
 // Fetch all packages addressed to the user's clubID that is not rejected and requires signatures
 router.get("/api/trade/", verifyToken, (req, res, next) => {
   
-    var my_query = (userData) => global.connection.query('SELECT p.PackageID, p.Status, p.Date FROM TransferMarkt_sp20.Packages p, TransferMarkt_sp20.Signatures s WHERE p.PackageId = s.PackageId AND p.Status = 1 AND s.ClubID = ? AND s.Status = ?', 
+    var my_query = (userData) => global.connection.query('SELECT p.PackageID, p.Status, p.Date FROM TransferMarkt_sp20.Packages p, TransferMarkt_sp20.Signatures s WHERE p.PackageId = s.PackageId AND p.Status = 1 AND s.ClubID = ? AND s.Status = ? ORDER BY p.Date DESC', 
     [userData.user.clubId, -1], (error, results, field) => {
        if (error) res.status(404).send(error);
        else res.send(JSON.stringify({ "status": 200, "error": null, "response": results }));
@@ -803,6 +791,7 @@ router.put("/api/players/:id", verifyToken, (req, res) => {
                 {
                     global.connection.rollback(() =>
                     {
+                        console.log("salary cap violation.");
                         res.send(JSON.stringify({ "status": 200, "error": null, "response": "Update Failed Due to Salary Cap Violation."}));
                     });
                 }
@@ -840,40 +829,28 @@ router.put("/api/sign/:id", verifyToken, (req, res) => {
 
     // status = -1 (pending), 0 (rejected), 1(accepted)
     // when sum(status) == count(status), the trade package has been accepted by all clubs, hence approved.
-    var check_complete = (next) => global.connection.query('SELECT COUNT(Status) = SUM(Status) AS Approved FROM TransferMarkt_sp20.Signatures WHERE PackageId = ?', [req.params.id], (error, results, field) => {
+    var check_complete = (next) => global.connection.query('SELECT COUNT(Status) AS Sum, COUNT(Status) = SUM(Status) AS Approved FROM TransferMarkt_sp20.Signatures WHERE PackageId = ?', [req.params.id], (error, results, field) => {
         if (error) res.status(404).send(error);
         else 
             if (results.length === 0 || typeof results === undefined)
                 res.status(404).send("Package ID NOT FOUND.");
             else {
-
                 var rows = JSON.parse(JSON.stringify(results[0]));
-                if (rows.Approved) { 
-
-					console.log("Threshold number of signatures reached");
-					
+                if (rows.Approved) {                    
 					// Check if trade package is valid
 					execute_trade(req.params.id, success => {
-
-                        if (success) {
-							console.log("Trade execution success");
-							next();
-						}
+                        
+                        if (success) next();
 					    else {
-							console.log("Trade execution failure");
-							next();
                             // Invalidate the Package:
                             global.connection.query('UPDATE TransferMarkt_sp20.Packages SET Status = Status * ? WHERE PackageId = ?', [0, req.params.id], (error, results, field) => {
                                 if (error) res.status(404).send(error);
-                                else res.send(JSON.stringify({"status" : 200, "error" : null, "response" : response}));
+                                else (!res.headersSent)? res.send(JSON.stringify({"status" : 200, "error" : null, "response" : response})) : console.log(response);
                             });
                         }
                     }); 
 				}
-                else {
-					console.log("Threshold number of signatures NOT reached");
-					res.send(JSON.stringify({"status" : 200, "error" : null, "response" : response}));
-				}
+                else res.send(JSON.stringify({"status" : 200, "error" : null, "response" : response}));
             }
     });
 
@@ -900,11 +877,13 @@ router.put("/api/sign/:id", verifyToken, (req, res) => {
             update_signature(userData.user);
         }
     });
+
 });
 
 // POST
 // New Player
 router.post("/api/players/", verifyToken, (req, res) => {
+    console.log(req.body);
     for(const attrib of player_attribs)
         if (!req.body.hasOwnProperty(attrib))
             {
@@ -1008,46 +987,47 @@ router.post("/api/trade/", verifyToken, (req, res) => {
         
         if (halt)
             return;
-        
-        global.connection.query('INSERT INTO TransferMarkt_sp20.Requests VALUES(?)', [Object.values(createRequest(request, packageID))], (error, results, field) => {
-            console.log("insert results: " + JSON.stringify(results));
-            if (error)
-            {
-                console.log(error);
-                if (!res.headersSent)     
-                    res.status(404).send(error);
-            }
-            else
-            {
-                if(!teams.has(request.To))
-                {
-                    teams.add(request.To);
-                    global.connection.query('INSERT INTO TransferMarkt_sp20.Signatures VALUES(?)', [Object.values(createSignature(request.To, packageID))], (error, results, field) => {
-                        if (error)
-                        {
-                            res.status(404).send(error);
-                            return;
-                        }
-                    });
-                }
-                if (!teams.has(request.From))
-                {
-                    teams.add(request.From);
-                    global.connection.query('INSERT INTO TransferMarkt_sp20.Signatures VALUES(?)', [Object.values(createSignature(request.From, packageID))], (error, results, field) => {
-                        if (error)
-                        {
-                            res.status(404).send(error);
-                            return;
-                        }
-                    });
-                }
-            }
-        });
 
-        if (index == array.length - 1)
-        {
-            res.send(JSON.stringify({"status" : 200, "error" : null, "response" : response}));
-        }
+        verifyClub(request.PlayerID, request.From, () =>
+            global.connection.query('INSERT INTO TransferMarkt_sp20.Requests VALUES(?)', [Object.values(createRequest(request, packageID))], (error, results, field) => {
+                console.log("insert results: " + JSON.stringify(results));
+                if (error)
+                {
+                    console.log(error);
+                    if (!res.headersSent)     
+                        res.status(404).send(error);
+                }
+                else
+                {
+                    if(!teams.has(request.To))
+                    {
+                        teams.add(request.To);
+                        global.connection.query('INSERT INTO TransferMarkt_sp20.Signatures VALUES(?)', [Object.values(createSignature(request.To, packageID))], (error, results, field) => {
+                            if (error)
+                            {
+                                res.status(404).send(error);
+                                return;
+                            }
+                        });
+                    }
+                    if (!teams.has(request.From))
+                    {
+                        teams.add(request.From);
+                        global.connection.query('INSERT INTO TransferMarkt_sp20.Signatures VALUES(?)', [Object.values(createSignature(request.From, packageID))], (error, results, field) => {
+                            if (error)
+                            {
+                                res.status(404).send(error);
+                                return;
+                            }
+                        });
+                    }
+    
+                    if (index == array.length - 1 && !res.headersSent)
+                    {
+                        res.send(JSON.stringify({"status" : 200, "error" : null, "response" : response}));
+                    }
+                }
+        }), null, res);
     });
 
     // trade package status defaulted to be accepted for easier backend processing (0 = rejected, 1 = accepted)
@@ -1076,9 +1056,14 @@ router.delete("/api/players/:id", verifyToken, (req, res) => {
         res.status(404).send("Player ID needs to be INT.");
         return;
     }
+    delete_positions = () => global.connection.query('DELETE FROM TransferMarkt_sp20.PlayerPositions WHERE PlayerID = ?', [req.params.id], (error, results, field) => {
+        if (error) res.status(404).send(error);
+        else delete_player();
+    });
 
     // callback to delete if admin
-    admin_query = () => global.connection.query('DELETE FROM TransferMarkt_sp20.Players WHERE playerId = ?', [Number(req.params.id)], (error, results, field) => {
+    delete_player = () => global.connection.query('DELETE FROM TransferMarkt_sp20.Players WHERE playerId = ?', [Number(req.params.id)], (error, results, field) => {
+        console.log(error);
         if (error) res.status(404).send(error);
         else res.send(JSON.stringify({"status" : 200, "error" : null, "response" : results}));
     });
@@ -1088,7 +1073,7 @@ router.delete("/api/players/:id", verifyToken, (req, res) => {
         else {
             console.log(userData);
             // allow only if the player belongs to the admin's club
-            verifyClub(req.params.id, userData.user.clubId, admin_query, null, res);
+            verifyClub(req.params.id, userData.user.clubId, delete_positions, null, res);
         }
     });
 });
