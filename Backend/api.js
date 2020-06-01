@@ -259,7 +259,7 @@ var verifyClub = (playerId, clubId, next, param, res) => global.connection.query
         res.status(404).send(`No Player Found with ${playerId}.`);
     } else {
         var rows = JSON.parse(JSON.stringify(results[0]));
-        rows.clubId == clubId ? (param ? next(param) : next()) : res.status(404).send("Permission Denied: Player's Club ID and your Club ID do not match."); // deploy ver
+        rows.clubId == clubId ? (param ? next(param) : next()) : (!res.headersSent? res.status(404).send("Permission Denied: Player's Club ID and your Club ID do not match.") : console.log("Permission Denied: Player's Club ID and your Club ID do not match.")); // deploy ver
         // rows.clubId == userData.user.clubId ? next() : console.log("Permission Denied."); // debug ver
     }
 });
