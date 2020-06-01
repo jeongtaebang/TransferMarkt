@@ -30,10 +30,13 @@ global.connection = mysql.createConnection({
 
 connection.connect();
 
-// // Connect to database
-// app.use((req, res, next) => {   
-//     next();
-// });
+// Connect to database
+app.use((req, res, next) => {   
+    console.log(global.connection.state);
+    if (global.connection.state === `disconnected`)
+        global.connection.connect();
+    next();
+});
 
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json());
