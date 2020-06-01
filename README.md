@@ -14,7 +14,7 @@ Potentially, sports league organizations can use this application to manage info
 - `manager_creds.csv`: Username and passwords of all managers in our DB. Stored in CSV for reference (since plaintext passwords are not stored in the database itself).
 
 ## How to Use:
-We have a server running on AWS. You may log in at `http://transfermarkt.live/signin`. Please contact us for credentials.  s
+We have a server running on AWS. You may log in at `http://transfermarkt.live/signin`. Please contact us for credentials.  
 
 Gillian Yue  
 Jeong Tae Bang  
