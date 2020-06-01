@@ -123,8 +123,14 @@ var execute_trade = (packageID, success) => {
 	
 	var get_league_info = (result) => global.connection.query("SELECT SalaryCap FROM TransferMarkt_sp20.Leagues WHERE LeagueID = 1",
 	(error, results, fields) => {
-		if (error) res.status(404).send(error);
-		else result(results[0].SalaryCap);
+		if (error) {
+			console.log(error);
+			result(error, null);
+		}
+		else {
+			console.log("Got Salary Cap");
+			result(null, results[0].SalaryCap);
+		}
 	});
 	
 
@@ -139,8 +145,8 @@ var execute_trade = (packageID, success) => {
 
             if (error)
             {
-                res.status(404).send(error);
-                return;
+				console.log(error);
+				result(error, null);
             }
 			clubs_involved = new Set();
 			results.forEach((request, index, array) => {
@@ -153,12 +159,13 @@ var execute_trade = (packageID, success) => {
 				[request.To, request.NewSalary, request.PlayerID] , (error, results, fields) => {
 					if (error) {
 						global.connection.rollback(() => {
-                            res.status(404).send(error);
-                            return;
+							console.log(error);
+							result(error, null);
 						});
 					}
 					else if (index === array.length - 1) {
-						result(clubs_involved);
+						console.log("Got clubs involved");
+						result(null, clubs_involved);
                     }
 				});
 			});
@@ -186,7 +193,7 @@ var execute_trade = (packageID, success) => {
 						passed(false);
 					});
                 }
-    			else if (index === array.length) {
+    			else if (index === array.length - 1) {
                     console.log(`Package Accepted: All involved clubs meet salary cap constraint`);
                     passed(true);
                 }
@@ -195,18 +202,28 @@ var execute_trade = (packageID, success) => {
 	};
 
 	// Get Salary Cap
-	get_league_info((salary_cap) => {
+	get_league_info((error, salary_cap) => {
+
+		if (error)
+		{
+			success(false);
+		}
 
 		// Begin transaction
 		global.connection.beginTransaction((error) => {
             if (error)
             {
-                res.status(404).send(error);
-                return;
+				success(false);
             }
 
 			// Update player clubs and salaries affected by trade
-			updates_players(clubs_involved => {
+			updates_players((error, clubs_involved) => {
+
+				if (error)
+				{
+					success(false);
+				}
+
 				
 				// Ensure that no clubs are over the salary cap
 				check_constraints(clubs_involved, salary_cap, passed => {
@@ -830,11 +847,18 @@ router.put("/api/sign/:id", verifyToken, (req, res) => {
                 var rows = JSON.parse(JSON.stringify(results[0]));
                 if (rows.Approved) { 
 
+					console.log("Threshold number of signatures reached");
+					
 					// Check if trade package is valid
 					execute_trade(req.params.id, success => {
-                        
-                        if (success) {next();}
+
+                        if (success) {
+							console.log("Trade execution success");
+							next();
+						}
 					    else {
+							console.log("Trade execution failure");
+							next();
                             // Invalidate the Package:
                             global.connection.query('UPDATE TransferMarkt_sp20.Packages SET Status = Status * ? WHERE PackageId = ?', [0, req.params.id], (error, results, field) => {
                                 if (error) res.status(404).send(error);
@@ -843,7 +867,10 @@ router.put("/api/sign/:id", verifyToken, (req, res) => {
                         }
                     }); 
 				}
-                else res.send(JSON.stringify({"status" : 200, "error" : null, "response" : response}));
+                else {
+					console.log("Threshold number of signatures NOT reached");
+					res.send(JSON.stringify({"status" : 200, "error" : null, "response" : response}));
+				}
             }
     });
 
@@ -870,7 +897,6 @@ router.put("/api/sign/:id", verifyToken, (req, res) => {
             update_signature(userData.user);
         }
     });
-
 });
 
 // POST
